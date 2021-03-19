@@ -1,0 +1,14 @@
+{
+  "name": "vips-stream",
+  "version": "0.1.0",
+  "description": "",
+  "main": "lib/index.js",
+  "author": "bongole <bongole2@gmail.com>",
+  "license": "MIT",
+  "dependencies": {
+    "neon-cli": "^0.7.1"
+  },
+  "scripts": {
+    "install": "neon build"
+  }
+}
