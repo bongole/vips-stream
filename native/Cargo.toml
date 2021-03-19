@@ -1,5 +1,6 @@
 [workspace]
 
 members = [
-  "vips-stream"
+  "vips-stream",
+  "libvips-sys"
 ]
