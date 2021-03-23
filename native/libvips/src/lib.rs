@@ -1,4 +1,4 @@
-use std::{env::set_var, env::var, ffi::CString, ptr::null_mut, sync::Once};
+use std::{env::set_var, env::var, ffi::{CStr, CString}, ptr::null_mut, sync::Once};
 
 #[derive(Debug)]
 pub struct VipsImage<'a> {
@@ -127,6 +127,19 @@ pub fn new_target_custom() -> VipsTargetCustom {
     }
 
     vtc
+}
+
+pub fn error() -> String {
+    unsafe {
+        let s = libvips_sys::vips_error_buffer();
+        CStr::from_ptr(s).to_str().unwrap().to_string()
+    }
+}
+
+pub fn clear_error() {
+    unsafe {
+        libvips_sys::vips_error_clear()
+    }
 }
 
 #[cfg(test)]
