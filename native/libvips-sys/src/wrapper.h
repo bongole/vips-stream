@@ -1,1 +1,2 @@
-#include<vips/vips.h>
+#include <vips/vips.h>
+#include <vips/vector.h>

@@ -3,7 +3,7 @@ use std::path::PathBuf;
 
 fn main() {
     let lib = pkg_config::Config::new()
-        .atleast_version("8.10")
+        .atleast_version("8.9")
         .probe("vips")
         .unwrap();
 
