@@ -13,7 +13,7 @@ fn main() {
             .rustified_enum("*")
             .bitfield_enum("*Flags?")
             .whitelist_function("vips_.*")
-            .whitelist_function("g_(setenv|object|signal|value|type).*")
+            .whitelist_function("g_(object|signal|value|type).*")
             .layout_tests(false)
             .generate_comments(false);
         

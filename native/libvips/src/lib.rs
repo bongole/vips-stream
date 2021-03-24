@@ -1,4 +1,10 @@
-use std::{env::set_var, env::var, ffi::{CStr, CString}, ptr::null_mut, sync::Once};
+use std::{
+    env::set_var,
+    env::var,
+    ffi::{CStr, CString},
+    ptr::null_mut,
+    sync::Once,
+};
 
 #[derive(Debug)]
 pub struct VipsImage<'a> {
@@ -105,11 +111,18 @@ pub fn new_source_custom() -> VipsSourceCustom {
 }
 
 pub fn new_image_from_source(source: &VipsSourceCustom) -> VipsImage {
-    let mut vi = VipsImage { vips_image: null_mut(), vips_source: source };
+    let mut vi = VipsImage {
+        vips_image: null_mut(),
+        vips_source: source,
+    };
 
     let empty_str = CString::new("").unwrap();
     unsafe {
-        let vips_image_ptr = libvips_sys::vips_image_new_from_source(source.vips_source_custom as *mut libvips_sys::VipsSource, empty_str.as_ptr(), null_mut::<i32>());
+        let vips_image_ptr = libvips_sys::vips_image_new_from_source(
+            source.vips_source_custom as *mut libvips_sys::VipsSource,
+            empty_str.as_ptr(),
+            null_mut::<i32>(),
+        );
         vi.vips_image = vips_image_ptr;
     }
 
@@ -137,9 +150,15 @@ pub fn error() -> String {
 }
 
 pub fn clear_error() {
-    unsafe {
-        libvips_sys::vips_error_clear()
-    }
+    unsafe { libvips_sys::vips_error_clear() }
+}
+
+pub fn set_concurrency(c: i32) {
+    unsafe { libvips_sys::vips_concurrency_set(c) }
+}
+
+pub fn concurrency() -> i32 {
+    unsafe { libvips_sys::vips_concurrency_get() }
 }
 
 #[cfg(test)]
@@ -148,6 +167,17 @@ mod tests {
     fn test_init() {
         let b = crate::init();
         assert_eq!(0, b);
+    }
+
+    #[test]
+    fn test_concurrency() {
+        crate::init();
+
+        crate::set_concurrency(1);
+        assert_eq!(1, crate::concurrency());
+
+        crate::set_concurrency(0);
+        assert!( 0 != crate::concurrency());
     }
 
     #[test]
@@ -181,5 +211,4 @@ mod tests {
         let r = crate::new_image_from_source(&source);
         assert!(!r.vips_image.is_null());
     }
-
 }
