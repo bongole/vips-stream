@@ -71,7 +71,7 @@ impl VipsSourceCustom {
     pub fn set_on_read<F>(&mut self, f: F)
     where
         F: FnMut(&mut [u8]) -> usize,
-        F: 'static,
+        F: 'static
     {
         let handler_id = unsafe {
             #[allow(non_snake_case)]
@@ -100,6 +100,13 @@ impl VipsSourceCustom {
         };
 
         self.read_handler = (Some(handler_id), Some(Box::new(f)));
+    }
+
+    pub fn read_position(&self) -> i64 {
+        unsafe {
+            let p = (*self.vips_source_custom).parent_object;
+            p.read_position
+        }
     }
 }
 
@@ -182,7 +189,7 @@ impl<'a> VipsImage<'a> {
             let r = libvips_sys::vips_image_write_to_target(
                 self.vips_image,
                 suffix_k.as_ptr(),
-                target.vips_target_custom as *mut libvips_sys::VipsTarget,
+                libvips_sys::g_type_cast(target.vips_target_custom, libvips_sys::vips_target_get_type()),
                 null_mut::<*const c_void>()
             );
 
@@ -214,7 +221,7 @@ pub fn new_image_from_source(source: &VipsSourceCustom) -> VipsImage {
     unsafe {
         let empty_str = CString::new("").unwrap();
         let vips_image_ptr = libvips_sys::vips_image_new_from_source(
-            source.vips_source_custom as *mut libvips_sys::VipsSource,
+            libvips_sys::g_type_cast(source.vips_source_custom, libvips_sys::vips_source_get_type()),
             empty_str.as_ptr(),
             null_mut::<*const c_char>(),
         );
@@ -268,7 +275,7 @@ pub fn version() -> String {
 }
 
 fn to_bool(i: i32) -> bool {
-    matches!(i, 1)
+    i == 1
 }
 
 fn to_int(b: bool) -> i32 {
@@ -363,11 +370,14 @@ mod tests {
         let file_path = format!("{}/test/test.jpg", env!("CARGO_MANIFEST_DIR"));
         let mut file = File::open(file_path).unwrap();
 
-        src.set_on_read(move |buf| file.read(buf).unwrap());
+        src.set_on_read(move |buf| {
+            file.read(buf).unwrap()
+        });
 
         let vi = crate::new_image_from_source(&src);
 
         assert!(!vi.vips_image.is_null());
+        assert!(0 < src.read_position());
     }
 
     #[test]
