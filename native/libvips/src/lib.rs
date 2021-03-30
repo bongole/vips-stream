@@ -1,6 +1,5 @@
 use std::{
-    env::set_var,
-    env::var,
+    env,
     ffi::{c_void, CStr, CString},
     mem::transmute,
     os::raw::c_char,
@@ -252,8 +251,8 @@ static mut INIT_VAL: i32 = 0;
 
 pub fn init() -> i32 {
     INIT.call_once(|| {
-        if var("VIPS_MIN_STACK_SIZE").is_err() {
-            set_var("VIPS_MIN_STACK_SIZE", "2m");
+        if env::var("VIPS_MIN_STACK_SIZE").is_err() {
+            env::set_var("VIPS_MIN_STACK_SIZE", "2m");
         }
 
         unsafe {
