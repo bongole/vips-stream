@@ -1,0 +1,38 @@
+use std::{
+    ffi::{c_void, CString},
+    ptr::null_mut,
+};
+
+use crate::vips_source_custom::*;
+use crate::vips_target_custom::*;
+pub struct VipsImage<'a> {
+    pub(crate) vips_image: *mut libvips_sys::VipsImage,
+    pub(crate) _vips_source: &'a VipsSourceCustom,
+}
+
+impl<'a> Drop for VipsImage<'a> {
+    fn drop(&mut self) {
+        unsafe {
+            libvips_sys::g_object_unref(self.vips_image as libvips_sys::gpointer);
+        }
+    }
+}
+
+impl<'a> VipsImage<'a> {
+    pub fn write_to_target(&self, target: &VipsTargetCustom, suffix: &str) -> bool {
+        unsafe {
+            let suffix_k = CString::new(suffix).unwrap();
+            let r = libvips_sys::vips_image_write_to_target(
+                self.vips_image,
+                suffix_k.as_ptr(),
+                libvips_sys::g_type_cast(
+                    target.vips_target_custom,
+                    libvips_sys::vips_target_get_type(),
+                ),
+                null_mut::<*const c_void>(),
+            );
+
+            r == 0
+        }
+    }
+}

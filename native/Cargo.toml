@@ -2,6 +2,6 @@
 
 members = [
   "vips-stream",
-  "libvips",
+  "libvips-rs",
   "libvips-sys"
 ]
