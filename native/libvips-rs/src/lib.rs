@@ -1,71 +1,16 @@
 use std::{
     env,
     ffi::{CStr, CString},
-    os::raw::c_char,
-    ptr::null_mut,
     sync::Once,
 };
 
-mod vips_source_custom;
-use vips_source_custom::*;
-
-mod vips_target_custom;
-use vips_target_custom::*;
-
 mod vips_image;
-use vips_image::*;
+mod vips_source_custom;
+mod vips_target_custom;
 
-pub fn new_source_custom() -> VipsSourceCustom {
-    let mut vsc = VipsSourceCustom {
-        vips_source_custom: null_mut(),
-        read_handler: (None, None),
-    };
-
-    unsafe {
-        let vips_source_ptr = libvips_sys::vips_source_custom_new();
-        vsc.vips_source_custom = vips_source_ptr;
-    }
-
-    vsc
-}
-
-pub fn new_image_from_source(source: &VipsSourceCustom) -> VipsImage {
-    let mut vi = VipsImage {
-        vips_image: null_mut(),
-        _vips_source: source,
-    };
-
-    unsafe {
-        let empty_str = CString::new("").unwrap();
-        let vips_image_ptr = libvips_sys::vips_image_new_from_source(
-            libvips_sys::g_type_cast(
-                source.vips_source_custom,
-                libvips_sys::vips_source_get_type(),
-            ),
-            empty_str.as_ptr(),
-            null_mut::<*const c_char>(),
-        );
-
-        vi.vips_image = vips_image_ptr;
-    }
-
-    vi
-}
-
-pub fn new_target_custom() -> VipsTargetCustom {
-    let mut vtc = VipsTargetCustom {
-        vips_target_custom: null_mut(),
-        write_handler: (None, None),
-        finish_handler: (None, None),
-    };
-
-    unsafe {
-        let vips_target_ptr = libvips_sys::vips_target_custom_new();
-        vtc.vips_target_custom = vips_target_ptr;
-    }
-
-    vtc
-}
+pub use vips_image::*;
+pub use vips_source_custom::*;
+pub use vips_target_custom::*;
 
 static INIT: Once = Once::new();
 static mut INIT_VAL: i32 = 0;

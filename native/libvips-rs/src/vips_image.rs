@@ -1,5 +1,6 @@
 use std::{
     ffi::{c_void, CString},
+    os::raw::c_char,
     ptr::null_mut,
 };
 
@@ -35,4 +36,27 @@ impl<'a> VipsImage<'a> {
             r == 0
         }
     }
+}
+
+pub fn new_image_from_source(source: &VipsSourceCustom) -> VipsImage {
+    let mut vi = VipsImage {
+        vips_image: null_mut(),
+        _vips_source: source,
+    };
+
+    unsafe {
+        let empty_str = CString::new("").unwrap();
+        let vips_image_ptr = libvips_sys::vips_image_new_from_source(
+            libvips_sys::g_type_cast(
+                source.vips_source_custom,
+                libvips_sys::vips_source_get_type(),
+            ),
+            empty_str.as_ptr(),
+            null_mut::<*const c_char>(),
+        );
+
+        vi.vips_image = vips_image_ptr;
+    }
+
+    vi
 }

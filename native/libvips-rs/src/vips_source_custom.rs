@@ -1,4 +1,9 @@
-use std::{ffi::c_void, ffi::CString, ptr::slice_from_raw_parts_mut, mem::transmute};
+use std::{
+    ffi::c_void,
+    ffi::CString,
+    mem::transmute,
+    ptr::{null_mut, slice_from_raw_parts_mut},
+};
 
 pub type ReadHandlerType = (Option<u64>, Option<Box<dyn FnMut(&mut [u8]) -> usize>>);
 pub struct VipsSourceCustom {
@@ -61,4 +66,18 @@ impl VipsSourceCustom {
             p.read_position
         }
     }
+}
+
+pub fn new_source_custom() -> VipsSourceCustom {
+    let mut vsc = VipsSourceCustom {
+        vips_source_custom: null_mut(),
+        read_handler: (None, None),
+    };
+
+    unsafe {
+        let vips_source_ptr = libvips_sys::vips_source_custom_new();
+        vsc.vips_source_custom = vips_source_ptr;
+    }
+
+    vsc
 }

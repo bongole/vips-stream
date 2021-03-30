@@ -1,4 +1,9 @@
-use std::{ffi::c_void, ffi::CString, mem::transmute, ptr::slice_from_raw_parts};
+use std::{
+    ffi::c_void,
+    ffi::CString,
+    mem::transmute,
+    ptr::{null_mut, slice_from_raw_parts},
+};
 
 pub type WriteHandlerType = (Option<u64>, Option<Box<dyn FnMut(&[u8]) -> usize>>);
 pub type FinishHandlerType = (Option<u64>, Option<Box<dyn FnMut()>>);
@@ -96,4 +101,19 @@ impl VipsTargetCustom {
             parent.finished == 1
         }
     }
+}
+
+pub fn new_target_custom() -> VipsTargetCustom {
+    let mut vtc = VipsTargetCustom {
+        vips_target_custom: null_mut(),
+        write_handler: (None, None),
+        finish_handler: (None, None),
+    };
+
+    unsafe {
+        let vips_target_ptr = libvips_sys::vips_target_custom_new();
+        vtc.vips_target_custom = vips_target_ptr;
+    }
+
+    vtc
 }
