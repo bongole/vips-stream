@@ -39,10 +39,13 @@ pub fn version() -> String {
     }
 }
 
+
+#[inline]
 fn to_bool(i: i32) -> bool {
     i == 1
 }
 
+#[inline]
 fn to_int(b: bool) -> i32 {
     if b {
         1

@@ -1,5 +1,6 @@
 use std::{
     ffi::{c_void, CString},
+    mem::transmute,
     os::raw::c_char,
     ptr::null_mut,
 };
@@ -20,6 +21,24 @@ impl<'a> Drop for VipsImage<'a> {
 }
 
 impl<'a> VipsImage<'a> {
+    pub fn thumbnail(&mut self, width: i32) -> &mut Self {
+        unsafe {
+            let out_ptr = null_mut::<libvips_sys::VipsImage>();
+            libvips_sys::vips_thumbnail_image(
+                self.vips_image,
+                transmute(&out_ptr),
+                width,
+                null_mut::<*const c_void>(),
+            );
+
+            libvips_sys::g_object_unref(self.vips_image as libvips_sys::gpointer);
+
+            self.vips_image = out_ptr;
+        }
+
+        self
+    }
+
     pub fn write_to_target(&self, target: &VipsTargetCustom, suffix: &str) -> bool {
         unsafe {
             let suffix_k = CString::new(suffix).unwrap();
