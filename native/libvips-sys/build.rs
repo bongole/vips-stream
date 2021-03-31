@@ -10,8 +10,9 @@ fn main() {
     let bindings = {
         let mut builder = bindgen::Builder::default()
             .header("src/wrapper.h")
-            .rustified_enum("*")
             .bitfield_enum("*Flags?")
+            .constified_enum_module("(VipsAccess|VipsCoding|VipsBandFormat|VipsInterpretation|VipsImageType)")
+            .rustified_enum("*")
             .whitelist_function("vips_.*")
             .whitelist_function("g_(object|signal|value|type).*")
             .layout_tests(false)
