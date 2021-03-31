@@ -1,7 +1,6 @@
 use std::{
     ffi::{c_void, CString},
     mem::transmute,
-    os::raw::c_char,
     ptr::null_mut,
 };
 
@@ -67,8 +66,6 @@ pub fn new_image_from_source(source: &VipsSourceCustom) -> VipsImage {
         let empty_str = CString::new("").unwrap();
         let access_k = CString::new("access").unwrap();
 
-        println!("vipsaccess {:?}", libvips_sys::VipsAccess::VIPS_ACCESS_SEQUENTIAL);
-
         let vips_image_ptr = libvips_sys::vips_image_new_from_source(
             libvips_sys::g_type_cast(
                 source.vips_source_custom,
@@ -77,7 +74,7 @@ pub fn new_image_from_source(source: &VipsSourceCustom) -> VipsImage {
             empty_str.as_ptr(),
             access_k.as_ptr(),
             libvips_sys::VipsAccess::VIPS_ACCESS_SEQUENTIAL,
-            null_mut::<*const c_char>(),
+            null_mut::<*const c_void>(),
         );
 
         vi.vips_image = vips_image_ptr;
