@@ -1,7 +1,7 @@
 [workspace]
 
 members = [
-  "vips-stream",
+  "node-vips/native",
   "libvips-rs",
   "libvips-sys"
 ]

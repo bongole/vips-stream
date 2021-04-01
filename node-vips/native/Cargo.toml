@@ -1,5 +1,5 @@
 [package]
-name = "vips-stream"
+name = "node-vips"
 version = "0.1.0"
 authors = ["bongole <bongole2@gmail.com>"]
 license = "MIT"
@@ -8,7 +8,7 @@ edition = "2018"
 exclude = ["artifacts.json", "index.node"]
 
 [lib]
-name = "vips_stream"
+name = "node_vips"
 crate-type = ["cdylib"]
 
 [build-dependencies]
