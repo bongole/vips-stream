@@ -51,7 +51,7 @@ mod integration_tests {
         let file_path = format!("{}/tests/assets/test.jpg", env!("CARGO_MANIFEST_DIR"));
         let mut file = File::open(file_path).unwrap();
 
-        src.set_on_read(move |buf| file.read(buf).unwrap());
+        src.set_on_read(move |buf| file.read(buf).unwrap() as i64 );
 
         let _vi = libvips_rs::new_image_from_source(src);
 
@@ -67,11 +67,11 @@ mod integration_tests {
         let file_path = format!("{}/tests/assets/test.jpg", env!("CARGO_MANIFEST_DIR"));
         let mut file = File::open(file_path).unwrap();
 
-        src.set_on_read(move |buf| file.read(buf).unwrap());
+        src.set_on_read(move |buf| file.read(buf).unwrap() as i64 );
 
         let mut tmpfile = NamedTempFile::new().unwrap();
         let tmpfile_path = tmpfile.path().to_str().unwrap().to_string();
-        target.set_on_write(move |buf| tmpfile.write(buf).unwrap());
+        target.set_on_write(move |buf| tmpfile.write(buf).unwrap() as i64 );
 
         let vi = libvips_rs::new_image_from_source(src);
         let r = vi.write_to_target(&target, ".png");
@@ -92,11 +92,11 @@ mod integration_tests {
         let file_path = format!("{}/tests/assets/test.jpg", env!("CARGO_MANIFEST_DIR"));
         let mut file = File::open(file_path).unwrap();
 
-        src.set_on_read(move |buf| file.read(buf).unwrap());
+        src.set_on_read(move |buf| file.read(buf).unwrap() as i64 );
 
         let mut tmpfile = NamedTempFile::new().unwrap();
         let tmpfile_path = tmpfile.path().to_str().unwrap().to_string();
-        target.set_on_write(move |buf| tmpfile.write(buf).unwrap());
+        target.set_on_write(move |buf| tmpfile.write(buf).unwrap() as i64 );
 
         let mut vi = libvips_rs::new_image_from_source(src);
         vi.thumbnail(300).thumbnail(200);
