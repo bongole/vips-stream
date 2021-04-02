@@ -6,20 +6,25 @@ use std::{
 
 use crate::vips_source_custom::*;
 use crate::vips_target_custom::*;
-pub struct VipsImage<'a> {
+pub struct VipsImage {
     pub(crate) vips_image: *mut libvips_sys::VipsImage,
-    pub(crate) _vips_source: &'a VipsSourceCustom,
+    pub vips_source: VipsSourceCustom,
 }
 
-impl<'a> Drop for VipsImage<'a> {
+unsafe impl Sync for VipsImage {}
+unsafe impl Send for VipsImage {}
+
+impl Drop for VipsImage {
     fn drop(&mut self) {
         unsafe {
-            libvips_sys::g_object_unref(self.vips_image as libvips_sys::gpointer);
+            if !self.vips_image.is_null() {
+                libvips_sys::g_object_unref(self.vips_image as libvips_sys::gpointer);
+            }
         }
     }
 }
 
-impl<'a> VipsImage<'a> {
+impl VipsImage {
     pub fn thumbnail(&mut self, width: i32) -> &mut Self {
         unsafe {
             let out_ptr = null_mut::<libvips_sys::VipsImage>();
@@ -56,10 +61,10 @@ impl<'a> VipsImage<'a> {
     }
 }
 
-pub fn new_image_from_source(source: &VipsSourceCustom) -> VipsImage {
+pub fn new_image_from_source(source: VipsSourceCustom) -> VipsImage {
     let mut vi = VipsImage {
         vips_image: null_mut(),
-        _vips_source: source,
+        vips_source: source,
     };
 
     unsafe {
@@ -68,7 +73,7 @@ pub fn new_image_from_source(source: &VipsSourceCustom) -> VipsImage {
 
         let vips_image_ptr = libvips_sys::vips_image_new_from_source(
             libvips_sys::g_type_cast(
-                source.vips_source_custom,
+                vi.vips_source.vips_source_custom,
                 libvips_sys::vips_source_get_type(),
             ),
             empty_str.as_ptr(),

@@ -5,22 +5,27 @@ use std::{
     ptr::{null_mut, slice_from_raw_parts_mut},
 };
 
-pub type ReadHandlerType = (Option<u64>, Option<Box<dyn FnMut(&mut [u8]) -> usize>>);
+pub type ReadHandlerType = (Option<u64>, Option<Box<dyn FnMut(&mut [u8]) -> i64>>);
 pub struct VipsSourceCustom {
     pub(crate) vips_source_custom: *mut libvips_sys::VipsSourceCustom,
     pub(crate) read_handler: ReadHandlerType,
 }
 
+unsafe impl Sync for VipsSourceCustom {}
+unsafe impl Send for VipsSourceCustom {}
+
 impl Drop for VipsSourceCustom {
     fn drop(&mut self) {
         unsafe {
-            let source = self.vips_source_custom as libvips_sys::gpointer;
+            if !self.vips_source_custom.is_null() {
+                let source = self.vips_source_custom as libvips_sys::gpointer;
 
-            if let Some(handler_id) = self.read_handler.0 {
-                libvips_sys::g_signal_handler_disconnect(source, handler_id);
+                if let Some(handler_id) = self.read_handler.0 {
+                    libvips_sys::g_signal_handler_disconnect(source, handler_id);
+                }
+
+                libvips_sys::g_object_unref(source);
             }
-
-            libvips_sys::g_object_unref(source);
         }
     }
 }
@@ -28,7 +33,7 @@ impl Drop for VipsSourceCustom {
 impl VipsSourceCustom {
     pub fn set_on_read<F>(&mut self, f: F)
     where
-        F: FnMut(&mut [u8]) -> usize,
+        F: FnMut(&mut [u8]) -> i64,
         F: 'static,
     {
         let handler_id = unsafe {
@@ -38,7 +43,7 @@ impl VipsSourceCustom {
                 buf: *mut c_void,
                 buf_len: libvips_sys::gint64,
                 data: *mut c_void,
-            ) -> usize {
+            ) -> libvips_sys::gint64 {
                 let this: &mut VipsSourceCustom = &mut *(data as *mut VipsSourceCustom);
                 if let Some(ref mut callback) = this.read_handler.1 {
                     let buf = slice_from_raw_parts_mut(buf as *mut u8, buf_len as usize);

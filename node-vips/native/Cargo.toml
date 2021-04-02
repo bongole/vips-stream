@@ -15,4 +15,6 @@ crate-type = ["cdylib"]
 neon-build = "0.8.0"
 
 [dependencies]
-neon = "0.8.0"
+libvips-rs = { path = "../../libvips-rs" }
+neon = { version = "0.8.0",  default-features = false, features = ["napi-6", "try-catch-api", "event-queue-api"]}
+flume = "0.10.2"

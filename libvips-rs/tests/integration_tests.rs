@@ -53,9 +53,9 @@ mod integration_tests {
 
         src.set_on_read(move |buf| file.read(buf).unwrap());
 
-        let _vi = libvips_rs::new_image_from_source(&src);
+        let _vi = libvips_rs::new_image_from_source(src);
 
-        assert!(0 < src.read_position());
+        assert!(0 < _vi.vips_source.read_position());
     }
 
     #[test]
@@ -73,7 +73,7 @@ mod integration_tests {
         let tmpfile_path = tmpfile.path().to_str().unwrap().to_string();
         target.set_on_write(move |buf| tmpfile.write(buf).unwrap());
 
-        let vi = libvips_rs::new_image_from_source(&src);
+        let vi = libvips_rs::new_image_from_source(src);
         let r = vi.write_to_target(&target, ".png");
 
         let tmpfile_metadata = metadata(tmpfile_path).unwrap();
@@ -98,7 +98,7 @@ mod integration_tests {
         let tmpfile_path = tmpfile.path().to_str().unwrap().to_string();
         target.set_on_write(move |buf| tmpfile.write(buf).unwrap());
 
-        let mut vi = libvips_rs::new_image_from_source(&src);
+        let mut vi = libvips_rs::new_image_from_source(src);
         vi.thumbnail(300).thumbnail(200);
         let r = vi.write_to_target(&target, ".png");
 

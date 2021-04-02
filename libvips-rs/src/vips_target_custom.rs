@@ -5,7 +5,7 @@ use std::{
     ptr::{null_mut, slice_from_raw_parts},
 };
 
-pub type WriteHandlerType = (Option<u64>, Option<Box<dyn FnMut(&[u8]) -> usize>>);
+pub type WriteHandlerType = (Option<u64>, Option<Box<dyn FnMut(&[u8]) -> i64>>);
 pub type FinishHandlerType = (Option<u64>, Option<Box<dyn FnMut()>>);
 pub struct VipsTargetCustom {
     pub(crate) vips_target_custom: *mut libvips_sys::VipsTargetCustom,
@@ -13,20 +13,25 @@ pub struct VipsTargetCustom {
     pub(crate) finish_handler: FinishHandlerType,
 }
 
+unsafe impl Sync for VipsTargetCustom {}
+unsafe impl Send for VipsTargetCustom {}
+
 impl Drop for VipsTargetCustom {
     fn drop(&mut self) {
         unsafe {
-            let target = self.vips_target_custom as libvips_sys::gpointer;
+            if !self.vips_target_custom.is_null() {
+                let target = self.vips_target_custom as libvips_sys::gpointer;
 
-            if let Some(handler_id) = self.write_handler.0 {
-                libvips_sys::g_signal_handler_disconnect(target, handler_id);
+                if let Some(handler_id) = self.write_handler.0 {
+                    libvips_sys::g_signal_handler_disconnect(target, handler_id);
+                }
+
+                if let Some(handler_id) = self.finish_handler.0 {
+                    libvips_sys::g_signal_handler_disconnect(target, handler_id);
+                }
+
+                libvips_sys::g_object_unref(self.vips_target_custom as libvips_sys::gpointer);
             }
-
-            if let Some(handler_id) = self.finish_handler.0 {
-                libvips_sys::g_signal_handler_disconnect(target, handler_id);
-            }
-
-            libvips_sys::g_object_unref(self.vips_target_custom as libvips_sys::gpointer);
         }
     }
 }
@@ -34,7 +39,7 @@ impl Drop for VipsTargetCustom {
 impl VipsTargetCustom {
     pub fn set_on_write<F>(&mut self, f: F)
     where
-        F: FnMut(&[u8]) -> usize,
+        F: FnMut(&[u8]) -> i64,
         F: 'static,
     {
         let handler_id = unsafe {
@@ -44,7 +49,7 @@ impl VipsTargetCustom {
                 buf: *mut c_void,
                 buf_len: libvips_sys::gint64,
                 data: *mut c_void,
-            ) -> usize {
+            ) -> libvips_sys::gint64 {
                 let this: &mut VipsTargetCustom = &mut *(data as *mut VipsTargetCustom);
                 if let Some(ref mut callback) = this.write_handler.1 {
                     let buf = slice_from_raw_parts(buf as *const u8, buf_len as usize);
