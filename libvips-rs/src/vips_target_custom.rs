@@ -1,8 +1,8 @@
 use std::{
     ffi::c_void,
-    ffi::CString,
     mem::transmute,
     ptr::{null_mut, slice_from_raw_parts},
+    os::raw::c_char
 };
 
 pub type WriteHandlerType = (Option<u64>, Option<Box<dyn FnMut(&[u8]) -> i64>>);
@@ -59,10 +59,9 @@ impl VipsTargetCustom {
                 }
             }
 
-            let write_k = CString::new("write").unwrap();
             libvips_sys::g_signal_connect(
                 self.vips_target_custom as libvips_sys::gpointer,
-                write_k.as_ptr(),
+                "write\0".as_ptr() as *const c_char,
                 Some(transmute(write_wrapper as *const fn())),
                 self as *mut _ as libvips_sys::gpointer,
             )
@@ -88,10 +87,9 @@ impl VipsTargetCustom {
                 }
             }
 
-            let finish_k = CString::new("finish").unwrap();
             libvips_sys::g_signal_connect(
                 self.vips_target_custom as libvips_sys::gpointer,
-                finish_k.as_ptr(),
+                "finish\0".as_ptr() as *const c_char,
                 Some(transmute(finish_wrapper as *const fn())),
                 self as *mut _ as libvips_sys::gpointer,
             )

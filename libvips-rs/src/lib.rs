@@ -1,8 +1,4 @@
-use std::{
-    env,
-    ffi::{CStr, CString},
-    sync::Once,
-};
+use std::{env, ffi::{CStr}, os::raw::c_char, sync::Once};
 
 mod vips_image;
 mod vips_source_custom;
@@ -22,8 +18,7 @@ pub fn init() -> i32 {
         }
 
         unsafe {
-            let init_name = CString::new("libvips-rs").unwrap();
-            INIT_VAL = libvips_sys::vips_init(init_name.as_ptr());
+            INIT_VAL = libvips_sys::vips_init("libvips-rs\0".as_ptr() as *const c_char);
         }
     });
 

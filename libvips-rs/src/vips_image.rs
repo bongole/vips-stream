@@ -1,8 +1,4 @@
-use std::{
-    ffi::{c_void, CString},
-    mem::transmute,
-    ptr::null_mut,
-};
+use std::{ffi::{c_void, CString}, mem::transmute, os::raw::c_char, ptr::null_mut};
 
 use crate::vips_source_custom::*;
 use crate::vips_target_custom::*;
@@ -68,16 +64,14 @@ pub fn new_image_from_source(source: VipsSourceCustom) -> VipsImage {
     };
 
     unsafe {
-        let empty_str = CString::new("").unwrap();
-        let access_k = CString::new("access").unwrap();
 
         let vips_image_ptr = libvips_sys::vips_image_new_from_source(
             libvips_sys::g_type_cast(
                 vi.vips_source.vips_source_custom,
                 libvips_sys::vips_source_get_type(),
             ),
-            empty_str.as_ptr(),
-            access_k.as_ptr(),
+            "\0".as_ptr() as *const c_char,
+            "access\0".as_ptr() as *const c_char,
             libvips_sys::VipsAccess::VIPS_ACCESS_SEQUENTIAL,
             null_mut::<*const c_void>(),
         );

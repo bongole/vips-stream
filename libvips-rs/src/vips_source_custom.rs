@@ -1,8 +1,8 @@
 use std::{
     ffi::c_void,
-    ffi::CString,
     mem::transmute,
     ptr::{null_mut, slice_from_raw_parts_mut},
+    os::raw::c_char
 };
 
 pub type ReadHandlerType = (Option<u64>, Option<Box<dyn FnMut(&mut [u8]) -> i64>>);
@@ -53,10 +53,9 @@ impl VipsSourceCustom {
                 }
             }
 
-            let read_k = CString::new("read").unwrap();
             libvips_sys::g_signal_connect(
                 self.vips_source_custom as libvips_sys::gpointer,
-                read_k.as_ptr(),
+                "read\0".as_ptr() as *const c_char,
                 Some(transmute(read_wrapper as *const fn())),
                 self as *mut _ as libvips_sys::gpointer,
             )
