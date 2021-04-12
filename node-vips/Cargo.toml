@@ -1,0 +1,18 @@
+[package]
+edition = "2018"
+name = "node-vips"
+version = "0.0.0"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+napi = {version="1", features=["napi6"]}
+napi-derive = "1"
+libvips-rs = { path="../libvips-rs" }
+
+[build-dependencies]
+napi-build = "1"
+
+[profile.release]
+lto = true
