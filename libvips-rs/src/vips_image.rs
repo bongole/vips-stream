@@ -7,7 +7,6 @@ pub struct VipsImage {
     pub vips_source: VipsSourceCustom,
 }
 
-unsafe impl Sync for VipsImage {}
 unsafe impl Send for VipsImage {}
 
 impl Drop for VipsImage {

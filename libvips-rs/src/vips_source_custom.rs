@@ -11,7 +11,6 @@ pub struct VipsSourceCustom {
     pub(crate) read_handler: ReadHandlerType,
 }
 
-unsafe impl Sync for VipsSourceCustom {}
 unsafe impl Send for VipsSourceCustom {}
 
 impl Drop for VipsSourceCustom {

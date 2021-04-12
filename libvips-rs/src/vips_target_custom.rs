@@ -13,7 +13,6 @@ pub struct VipsTargetCustom {
     pub(crate) finish_handler: FinishHandlerType,
 }
 
-unsafe impl Sync for VipsTargetCustom {}
 unsafe impl Send for VipsTargetCustom {}
 
 impl Drop for VipsTargetCustom {
