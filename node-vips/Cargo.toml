@@ -11,6 +11,7 @@ napi = {version="1", features=["napi6"]}
 napi-derive = "1"
 libvips-rs = { path="../libvips-rs" }
 flume = "0.10.3"
+threadpool = "1.8.1"
 
 [build-dependencies]
 napi-build = "1"
