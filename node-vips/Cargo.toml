@@ -12,6 +12,7 @@ napi-derive = "1"
 libvips-rs = { path="../libvips-rs" }
 flume = "0.10.3"
 threadpool = "1.8.1"
+once_cell = "1.7.2"
 
 [build-dependencies]
 napi-build = "1"
