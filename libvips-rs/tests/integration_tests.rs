@@ -98,8 +98,8 @@ mod integration_tests {
         let tmpfile_path = tmpfile.path().to_str().unwrap().to_string();
         target.set_on_write(move |buf| tmpfile.write(buf).unwrap() as i64 );
 
-        let mut vi = libvips_rs::new_image_from_source(src);
-        vi.thumbnail(300).thumbnail(200);
+        let vi = libvips_rs::new_image_from_source(src);
+        let vi = vi.thumbnail(300).thumbnail(200);
         let r = vi.write_to_target(&target, ".png");
 
         let tmpfile_metadata = metadata(tmpfile_path).unwrap();

@@ -8,11 +8,12 @@ async function test(idx) {
         let init = false;
         const res_wrap = (_err, v) => res(v);
         addon.createVipsImage(res_wrap, rej, (err, ctx, read_size) => {
-            if (read_stream.readableEnded ) return
+            if (read_stream.readableEnded) return
 
             if (!init) {
                 read_stream.once('end', () => {
                     addon.registerReadEnd(ctx)
+                    read_stream.close()
                 })
 
                 read_stream.once('error', (e) => {
@@ -36,31 +37,30 @@ async function test(idx) {
 
     console.log(vips)
 
-    /*
     const write_stream = fs.createWriteStream(`/tmp/test/thumb${idx}.jpg`);
-    addon.writeVipsImage(vips, ".jpg", async (err, ctx, buf) => {
-        console.log('write')
-        if( !write_stream.writable ) return
-        console.log(buf)
+    let r = await new Promise((res, rej) => {
+        const res_wrap = (_err, v) => { write_stream.end(() => { write_stream.close(); res(v); }) }
+        addon.writeVipsImage(vips, ".jpg", res_wrap, rej, async (err, ctx, buf) => {
+            if (!write_stream.writable ) return
 
-        let r = write_stream.write(buf)
-        console.log(`r = ${r}`)
-        if( !r ) {
-            await new Promise((r) => write_stream.once('drain', r))
-            console.log('drain')
-        }
+            let r = write_stream.write(buf)
+            if (!r) {
+                await new Promise((r) => write_stream.once('drain', r))
+                console.log('drain')
+            }
 
-        console.log('wrote ' + buf.length)
-        addon.registerWriteSize(ctx, buf.length)
+            addon.registerWriteSize(ctx, buf.length)
+        });
     });
-    */
+    console.log(r)
+    return r
 }
 
 (async () => {
     let proms = [];
-    for (let i = 0; i < 10; i++) {
+    for (let i = 0; i < 4; i++) {
         proms.push(test(i))
     }
 
-    await Promise.all(proms)
+    //await Promise.all(proms)
 })();

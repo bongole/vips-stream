@@ -1,6 +1,6 @@
 #![deny(clippy::all)]
 
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use libvips_rs::VipsImage;
 use napi::{
@@ -61,7 +61,7 @@ pub fn create_vips_image(ctx: CallContext) -> Result<JsUndefined> {
     let resolve_tsf = ctx.env.create_threadsafe_function(
         &resolve_func_js,
         0,
-        |ctx: ThreadSafeCallContext<VipsImage>| {
+        |ctx: ThreadSafeCallContext<Arc<Mutex<VipsImage>>>| {
             let vips_image_js = ctx.env.create_external(ctx.value, None)?;
 
             Ok(vec![vips_image_js])
@@ -101,7 +101,11 @@ pub fn create_vips_image(ctx: CallContext) -> Result<JsUndefined> {
         });
 
         let vi = libvips_rs::new_image_from_source(custom_src);
-        resolve_tsf.call(Ok(vi), ThreadsafeFunctionCallMode::Blocking);
+        let vi = vi.thumbnail(300); // TODO image processing
+        resolve_tsf.call(
+            Ok(Arc::new(Mutex::new(vi))),
+            ThreadsafeFunctionCallMode::Blocking,
+        );
     });
 
     Ok(ctx.env.get_undefined().unwrap())

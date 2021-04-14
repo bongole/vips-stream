@@ -1,14 +1,15 @@
 use std::{
     ffi::c_void,
     mem::transmute,
-    ptr::{null_mut, slice_from_raw_parts_mut},
     os::raw::c_char,
+    ptr::{null_mut, slice_from_raw_parts_mut},
 };
 
-pub type ReadHandlerType = (Option<u64>, Option<Box<dyn Fn(&mut [u8]) -> i64>>);
+type ReadHandler = dyn FnMut(&mut [u8]) -> i64 + Send + 'static;
+pub type ReadHandlerType = (Option<u64>, Option<Box<ReadHandler>>);
 pub struct VipsSourceCustom {
     pub(crate) vips_source_custom: *mut libvips_sys::VipsSourceCustom,
-    pub(crate) read_handler: ReadHandlerType,
+    pub read_handler: ReadHandlerType,
 }
 
 unsafe impl Send for VipsSourceCustom {}
@@ -32,9 +33,10 @@ impl Drop for VipsSourceCustom {
 impl VipsSourceCustom {
     pub fn set_on_read<F>(&mut self, f: F)
     where
-        F: Fn(&mut [u8]) -> i64,
-        F: 'static,
+        F: FnMut(&mut [u8]) -> i64 + Send + 'static,
     {
+        let closure: Box<ReadHandler> = Box::new(f);
+
         let handler_id = unsafe {
             #[allow(non_snake_case)]
             unsafe extern "C" fn read_wrapper(
@@ -43,8 +45,8 @@ impl VipsSourceCustom {
                 buf_len: libvips_sys::gint64,
                 data: *mut c_void,
             ) -> libvips_sys::gint64 {
-                let this: &mut VipsSourceCustom = &mut *(data as *mut VipsSourceCustom);
-                if let Some(ref callback) = this.read_handler.1 {
+                let this: &mut VipsSourceCustom = std::mem::transmute(data);
+                if let Some(callback) = this.read_handler.1.as_mut() {
                     let buf = slice_from_raw_parts_mut(buf as *mut u8, buf_len as usize);
                     callback(buf.as_mut().unwrap())
                 } else {
@@ -56,11 +58,11 @@ impl VipsSourceCustom {
                 self.vips_source_custom as libvips_sys::gpointer,
                 "read\0".as_ptr() as *const c_char,
                 Some(transmute(read_wrapper as *const fn())),
-                self as *mut _ as libvips_sys::gpointer,
+                self as *const _ as libvips_sys::gpointer,
             )
         };
 
-        self.read_handler = (Some(handler_id), Some(Box::new(f)));
+        self.read_handler = (Some(handler_id), Some(closure));
     }
 
     pub fn read_position(&self) -> i64 {
@@ -74,7 +76,7 @@ impl VipsSourceCustom {
 pub fn new_source_custom() -> VipsSourceCustom {
     let mut vsc = VipsSourceCustom {
         vips_source_custom: null_mut(),
-        read_handler: (None, None),
+        read_handler: (None, Default::default()),
     };
 
     unsafe {
