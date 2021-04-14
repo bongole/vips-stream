@@ -5,8 +5,8 @@ use std::{
     os::raw::c_char
 };
 
-pub type WriteHandlerType = (Option<u64>, Option<Box<dyn FnMut(&[u8]) -> i64>>);
-pub type FinishHandlerType = (Option<u64>, Option<Box<dyn FnMut()>>);
+pub type WriteHandlerType = (Option<u64>, Option<Box<dyn Fn(&[u8]) -> i64>>);
+pub type FinishHandlerType = (Option<u64>, Option<Box<dyn Fn()>>);
 pub struct VipsTargetCustom {
     pub(crate) vips_target_custom: *mut libvips_sys::VipsTargetCustom,
     pub(crate) write_handler: WriteHandlerType,
@@ -38,7 +38,7 @@ impl Drop for VipsTargetCustom {
 impl VipsTargetCustom {
     pub fn set_on_write<F>(&mut self, f: F)
     where
-        F: FnMut(&[u8]) -> i64,
+        F: Fn(&[u8]) -> i64,
         F: 'static,
     {
         let handler_id = unsafe {
@@ -52,7 +52,7 @@ impl VipsTargetCustom {
                 let this: &mut VipsTargetCustom = &mut *(data as *mut VipsTargetCustom);
                 if let Some(ref mut callback) = this.write_handler.1 {
                     let buf = slice_from_raw_parts(buf as *const u8, buf_len as usize);
-                    callback(&*buf)
+                    callback(buf.as_ref().unwrap())
                 } else {
                     0
                 }
@@ -71,7 +71,7 @@ impl VipsTargetCustom {
 
     pub fn set_on_finish<F>(&mut self, f: F)
     where
-        F: FnMut(),
+        F: Fn(),
         F: 'static,
     {
         let handler_id = unsafe {

@@ -2,10 +2,10 @@ use std::{
     ffi::c_void,
     mem::transmute,
     ptr::{null_mut, slice_from_raw_parts_mut},
-    os::raw::c_char
+    os::raw::c_char,
 };
 
-pub type ReadHandlerType = (Option<u64>, Option<Box<dyn FnMut(&mut [u8]) -> i64>>);
+pub type ReadHandlerType = (Option<u64>, Option<Box<dyn Fn(&mut [u8]) -> i64>>);
 pub struct VipsSourceCustom {
     pub(crate) vips_source_custom: *mut libvips_sys::VipsSourceCustom,
     pub(crate) read_handler: ReadHandlerType,
@@ -32,7 +32,7 @@ impl Drop for VipsSourceCustom {
 impl VipsSourceCustom {
     pub fn set_on_read<F>(&mut self, f: F)
     where
-        F: FnMut(&mut [u8]) -> i64,
+        F: Fn(&mut [u8]) -> i64,
         F: 'static,
     {
         let handler_id = unsafe {
@@ -44,9 +44,9 @@ impl VipsSourceCustom {
                 data: *mut c_void,
             ) -> libvips_sys::gint64 {
                 let this: &mut VipsSourceCustom = &mut *(data as *mut VipsSourceCustom);
-                if let Some(ref mut callback) = this.read_handler.1 {
+                if let Some(ref callback) = this.read_handler.1 {
                     let buf = slice_from_raw_parts_mut(buf as *mut u8, buf_len as usize);
-                    callback(&mut *buf)
+                    callback(buf.as_mut().unwrap())
                 } else {
                     0
                 }
