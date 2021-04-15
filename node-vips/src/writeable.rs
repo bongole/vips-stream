@@ -21,6 +21,19 @@ impl Drop for WriteContextNative {
     }
 }
 
+#[js_function(1)]
+pub fn show_vips_image_ref_count(ctx: CallContext) -> Result<JsUndefined> {
+    let attached_obj = ctx.get::<JsExternal>(0)?;
+    let vips_image = ctx
+        .env
+        .get_value_external::<Arc<Mutex<VipsImage>>>(&attached_obj)
+        .unwrap();
+
+    println!("print vips_image count {}", Arc::strong_count(vips_image));
+    Ok(ctx.env.get_undefined().unwrap())
+
+}
+
 #[js_function(5)]
 pub fn write_vips_image(ctx: CallContext) -> Result<JsUndefined> {
     let attached_obj = ctx.get::<JsExternal>(0)?;
@@ -81,11 +94,9 @@ pub fn write_vips_image(ctx: CallContext) -> Result<JsUndefined> {
             native.rx.recv().unwrap().unwrap_or(0)
         });
 
-        target_custom.set_on_finish(move || {
-            resolve_tsf.call(Ok(true), ThreadsafeFunctionCallMode::Blocking);
-        });
-
         vips_image.write_to_target(&target_custom, vips_write_suffix.as_str());
+
+        resolve_tsf.call(Ok(true), ThreadsafeFunctionCallMode::Blocking);
     });
 
     Ok(ctx.env.get_undefined().unwrap())

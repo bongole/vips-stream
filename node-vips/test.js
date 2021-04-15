@@ -13,6 +13,8 @@ async function test(idx) {
             if (!init) {
                 read_stream.once('end', () => {
                     addon.registerReadEnd(ctx)
+                    addon.showReadCtxRefCount(ctx)
+                    console.log('read end js')
                     read_stream.close()
                 })
 
@@ -36,10 +38,23 @@ async function test(idx) {
     })
 
     console.log(vips)
+    /*
+    addon.showVipsImageRefCount(vips)
+    setInterval(() => {
+        addon.showVipsImageRefCount(vips)
+        console.log('gc')
+        global.gc()
+    }, 1000);
+    */
 
     const write_stream = fs.createWriteStream(`/tmp/test/thumb${idx}.jpg`);
     let r = await new Promise((res, rej) => {
-        const res_wrap = (_err, v) => { write_stream.end(() => { write_stream.close(); res(v); }) }
+        const res_wrap = (_err, v) => { write_stream.end(() => { 
+            console.log('write end js')
+            write_stream.close();
+            res(v); 
+        }) }
+
         addon.writeVipsImage(vips, ".jpg", res_wrap, rej, async (err, ctx, buf) => {
             if (!write_stream.writable ) return
 
@@ -53,14 +68,12 @@ async function test(idx) {
         });
     });
     console.log(r)
-    return r
 }
 
 (async () => {
     let proms = [];
-    for (let i = 0; i < 4; i++) {
-        proms.push(test(i))
+    for (let i = 0; i < 100; i++) {
+        test(i)
     }
 
-    //await Promise.all(proms)
 })();

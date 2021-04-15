@@ -111,6 +111,18 @@ pub fn create_vips_image(ctx: CallContext) -> Result<JsUndefined> {
     Ok(ctx.env.get_undefined().unwrap())
 }
 
+#[js_function(1)]
+pub fn show_read_ctx_ref_count(ctx: CallContext) -> Result<JsUndefined> {
+    let attached_obj = ctx.get::<JsExternal>(0)?;
+    let o = ctx
+        .env
+        .get_value_external::<Arc<ReadContextNative>>(&attached_obj)
+        .unwrap();
+
+    println!("print read context count {}", Arc::strong_count(o));
+    Ok(ctx.env.get_undefined().unwrap())
+}
+
 #[js_function(2)]
 pub fn register_read_buf(ctx: CallContext) -> Result<JsUndefined> {
     let ctx_obj = ctx.get::<JsExternal>(0)?;
@@ -120,6 +132,7 @@ pub fn register_read_buf(ctx: CallContext) -> Result<JsUndefined> {
         .get_value_external::<Arc<ReadContextNative>>(&ctx_obj)?;
 
     native.tx.send(Some(js_buffer_ref)).unwrap();
+
 
     ctx.env.get_undefined()
 }

@@ -11,6 +11,7 @@ unsafe impl Send for VipsImage {}
 
 impl Drop for VipsImage {
     fn drop(&mut self) {
+        println!("drop vips image");
         unsafe {
             if !self.vips_image.is_null() {
                 libvips_sys::g_object_unref(self.vips_image as libvips_sys::gpointer);

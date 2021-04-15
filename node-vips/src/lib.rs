@@ -27,6 +27,8 @@ fn init(mut exports: JsObject) -> Result<()> {
     exports.create_named_method("registerReadEnd", readable::register_read_end)?;
     exports.create_named_method("writeVipsImage", writeable::write_vips_image)?;
     exports.create_named_method("registerWriteSize", writeable::register_write_size)?;
+    exports.create_named_method("showVipsImageRefCount", writeable::show_vips_image_ref_count)?;
+    exports.create_named_method("showReadCtxRefCount", readable::show_read_ctx_ref_count)?;
 
     Ok(())
 }

@@ -3,13 +3,18 @@ use std::{
     mem::transmute,
     os::raw::c_char,
     ptr::{null_mut, slice_from_raw_parts_mut},
+    sync::{Arc, Mutex},
 };
 
 type ReadHandler = dyn FnMut(&mut [u8]) -> i64 + Send + 'static;
-pub type ReadHandlerType = (Option<u64>, Option<Box<ReadHandler>>);
+type ReadHandlerBox = Arc<Mutex<Box<ReadHandler>>>;
 pub struct VipsSourceCustom {
     pub(crate) vips_source_custom: *mut libvips_sys::VipsSourceCustom,
-    pub read_handler: ReadHandlerType,
+    pub read_handler: Option<(
+        u64,
+        ReadHandlerBox,
+        *mut c_void,
+    )>,
 }
 
 unsafe impl Send for VipsSourceCustom {}
@@ -20,8 +25,9 @@ impl Drop for VipsSourceCustom {
             if !self.vips_source_custom.is_null() {
                 let source = self.vips_source_custom as libvips_sys::gpointer;
 
-                if let Some(handler_id) = self.read_handler.0 {
+                if let Some((handler_id, _, leaked_box_ptr)) = self.read_handler {
                     libvips_sys::g_signal_handler_disconnect(source, handler_id);
+                    let _ = Box::from_raw(leaked_box_ptr as *mut ReadHandlerBox);
                 }
 
                 libvips_sys::g_object_unref(source);
@@ -35,9 +41,9 @@ impl VipsSourceCustom {
     where
         F: FnMut(&mut [u8]) -> i64 + Send + 'static,
     {
-        let closure: Box<ReadHandler> = Box::new(f);
+        let closure: ReadHandlerBox = Arc::new(Mutex::new(Box::new(f)));
 
-        let handler_id = unsafe {
+        let (handler_id, leaked_box_ptr) = unsafe {
             #[allow(non_snake_case)]
             unsafe extern "C" fn read_wrapper(
                 _source: *mut libvips_sys::VipsSourceCustom,
@@ -45,24 +51,32 @@ impl VipsSourceCustom {
                 buf_len: libvips_sys::gint64,
                 data: *mut c_void,
             ) -> libvips_sys::gint64 {
-                let this: &mut VipsSourceCustom = std::mem::transmute(data);
-                if let Some(callback) = this.read_handler.1.as_mut() {
-                    let buf = slice_from_raw_parts_mut(buf as *mut u8, buf_len as usize);
-                    callback(buf.as_mut().unwrap())
-                } else {
-                    0
-                }
+                let leaked_box = Box::from_raw(data as *mut ReadHandlerBox);
+                let read_size = match leaked_box.lock() {
+                    Ok(mut callback) => {
+                        let buf = slice_from_raw_parts_mut(buf as *mut u8, buf_len as usize);
+                        callback(buf.as_mut().unwrap())
+                    }
+                    Err(_) => 0,
+                };
+
+                Box::leak(leaked_box);
+
+                read_size
             }
 
-            libvips_sys::g_signal_connect(
+            let leaked_box_ref = Box::leak(Box::new(closure.clone()));
+            let handler_id = libvips_sys::g_signal_connect(
                 self.vips_source_custom as libvips_sys::gpointer,
                 "read\0".as_ptr() as *const c_char,
                 Some(transmute(read_wrapper as *const fn())),
-                self as *const _ as libvips_sys::gpointer,
-            )
+                leaked_box_ref as *mut _ as libvips_sys::gpointer,
+            );
+
+            (handler_id, leaked_box_ref as *mut _ as *mut c_void)
         };
 
-        self.read_handler = (Some(handler_id), Some(closure));
+        self.read_handler = Some((handler_id, closure, leaked_box_ptr));
     }
 
     pub fn read_position(&self) -> i64 {
@@ -76,7 +90,7 @@ impl VipsSourceCustom {
 pub fn new_source_custom() -> VipsSourceCustom {
     let mut vsc = VipsSourceCustom {
         vips_source_custom: null_mut(),
-        read_handler: (None, Default::default()),
+        read_handler: Default::default()
     };
 
     unsafe {
