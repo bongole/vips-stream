@@ -72,7 +72,7 @@ async function test(idx) {
 
 (async () => {
     let proms = [];
-    for (let i = 0; i < 100; i++) {
+    for (let i = 0; i < 50; i++) {
         test(i)
     }
 
