@@ -24,7 +24,7 @@ impl Drop for VipsTargetCustom {
                     libvips_sys::g_signal_handler_disconnect(target, handler_id);
                 }
 
-                libvips_sys::g_object_unref(self.vips_target_custom as libvips_sys::gpointer);
+                libvips_sys::g_object_unref(target);
             }
         }
     }

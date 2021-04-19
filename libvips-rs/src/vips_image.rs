@@ -3,15 +3,14 @@ use std::{ffi::{c_void, CString}, mem::transmute, os::raw::c_char, ptr::null_mut
 use crate::vips_source_custom::*;
 use crate::vips_target_custom::*;
 pub struct VipsImage {
-    pub(crate) vips_image: *mut libvips_sys::VipsImage,
     pub vips_source: VipsSourceCustom,
+    pub(crate) vips_image: *mut libvips_sys::VipsImage,
 }
 
 unsafe impl Send for VipsImage {}
 
 impl Drop for VipsImage {
     fn drop(&mut self) {
-        println!("drop vips image");
         unsafe {
             if !self.vips_image.is_null() {
                 libvips_sys::g_object_unref(self.vips_image as libvips_sys::gpointer);

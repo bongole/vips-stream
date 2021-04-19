@@ -1,5 +1,3 @@
-#![feature(trait_alias)]
-
 use std::{
     ffi::c_void,
     mem::transmute,

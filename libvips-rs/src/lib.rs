@@ -70,6 +70,10 @@ pub fn clear_error() {
     unsafe { libvips_sys::vips_error_clear() }
 }
 
+pub fn thread_shutdown() {
+    unsafe { libvips_sys::vips_thread_shutdown() }
+}
+
 pub fn set_concurrency(c: i32) {
     unsafe { libvips_sys::vips_concurrency_set(c) }
 }

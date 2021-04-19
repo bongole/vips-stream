@@ -67,12 +67,14 @@ async function test(idx) {
             addon.registerWriteSize(ctx, buf.length)
         });
     });
+    vips = null;
+    global.gc()
     console.log(r)
 }
 
 (async () => {
     let proms = [];
-    for (let i = 0; i < 50; i++) {
+    for (let i = 0; i < 1; i++) {
         test(i)
     }
 
