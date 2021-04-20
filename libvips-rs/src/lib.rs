@@ -81,3 +81,11 @@ pub fn set_concurrency(c: i32) {
 pub fn concurrency() -> i32 {
     unsafe { libvips_sys::vips_concurrency_get() }
 }
+
+pub fn leak_set(b: bool) {
+    unsafe { libvips_sys::vips_leak_set(to_int(b)) }
+}
+
+pub fn shutdown() {
+    unsafe { libvips_sys::vips_shutdown() }
+}

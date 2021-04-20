@@ -5,67 +5,57 @@ use std::sync::{Arc, Mutex};
 use libvips_rs::VipsImage;
 use napi::{
     threadsafe_function::{ThreadSafeCallContext, ThreadsafeFunctionCallMode},
-    CallContext, JsExternal, JsFunction, JsNumber, JsString, JsUndefined, Result,
+    CallContext, JsFunction, JsNumber, JsObject, JsString, JsUndefined, Ref, Result,
 };
 
-struct WriteContextNative {
-    tx: flume::Sender<Option<i64>>,
-    rx: flume::Receiver<Option<i64>>,
-}
-
-impl Drop for WriteContextNative {
-    fn drop(&mut self) {
-        while !self.rx.is_empty() {
-            let _ = self.rx.recv().unwrap();
-        }
-    }
-}
-
 #[js_function(1)]
-pub fn show_vips_image_ref_count(ctx: CallContext) -> Result<JsUndefined> {
-    let attached_obj = ctx.get::<JsExternal>(0)?;
-    let vips_image = ctx
-        .env
-        .get_value_external::<Arc<Mutex<VipsImage>>>(&attached_obj)
+pub fn drop_vips_image(ctx: CallContext) -> Result<JsUndefined> {
+    let vips_image_obj = ctx.get::<JsObject>(0)?;
+    ctx.env
+        .drop_wrapped::<Arc<Mutex<VipsImage>>>(vips_image_obj)
         .unwrap();
-
-    println!("print vips_image count {}", Arc::strong_count(vips_image));
     Ok(ctx.env.get_undefined().unwrap())
-
 }
 
 #[js_function(5)]
 pub fn write_vips_image(ctx: CallContext) -> Result<JsUndefined> {
-    let attached_obj = ctx.get::<JsExternal>(0)?;
+    let vips_image_obj = ctx.get::<JsObject>(0)?;
     let vips_image = ctx
         .env
-        .get_value_external::<Arc<Mutex<VipsImage>>>(&attached_obj)
-        .unwrap();
+        .unwrap::<Arc<Mutex<VipsImage>>>(&vips_image_obj)?;
+    let vips_image_obj_ref = ctx.env.create_reference(vips_image_obj)?;
 
     let vips_write_suffix: String = ctx.get::<JsString>(1)?.into_utf8()?.as_str()?.to_string();
 
     let resolve_func_js = ctx.get::<JsFunction>(2)?;
     let reject_func_js = ctx.get::<JsFunction>(3)?;
 
-    let write_func = ctx.get::<JsFunction>(4)?;
+    let write_func_js = ctx.get::<JsFunction>(4)?;
     let write_tsf = ctx.env.create_threadsafe_function(
-        &write_func,
+        &write_func_js,
         0,
-        |ctx: ThreadSafeCallContext<(Arc<WriteContextNative>, &[u8])>| {
-            let write_ctx = ctx.env.create_external(ctx.value.0, None).unwrap();
+        |ctx: ThreadSafeCallContext<(flume::Sender<Option<i64>>, &[u8])>| {
+            let mut tx_js = ctx.env.create_object()?;
+            ctx.env.wrap(&mut tx_js, ctx.value.0)?;
             let buffer_js = ctx.env.create_buffer_copy(ctx.value.1).unwrap().into_raw();
 
-            Ok(vec![
-                write_ctx.coerce_to_object().unwrap(),
-                buffer_js.coerce_to_object().unwrap(),
-            ])
+            Ok(vec![tx_js, buffer_js.coerce_to_object().unwrap()])
         },
     )?;
 
     let resolve_tsf = ctx.env.create_threadsafe_function(
         &resolve_func_js,
         0,
-        |ctx: ThreadSafeCallContext<bool>| Ok(vec![ctx.env.get_boolean(ctx.value).unwrap()]),
+        |ctx: ThreadSafeCallContext<Ref<()>>| {
+            let vips_image_obj = ctx
+                .env
+                .get_reference_value_unchecked::<JsObject>(&ctx.value)?;
+            ctx.env
+                .drop_wrapped::<Arc<Mutex<VipsImage>>>(vips_image_obj)?;
+            ctx.value.unref(ctx.env)?;
+
+            Ok(vec![ctx.env.get_boolean(true).unwrap()])
+        },
     )?;
 
     let _reject_tsf = ctx.env.create_threadsafe_function(
@@ -75,8 +65,7 @@ pub fn write_vips_image(ctx: CallContext) -> Result<JsUndefined> {
     )?;
 
     let pool = crate::THREAD_POOL.get().unwrap().lock().unwrap();
-    let (tx, rx) = flume::unbounded();
-    let native = Arc::new(WriteContextNative { tx, rx });
+    let (tx, rx) = flume::unbounded::<Option<i64>>();
 
     let vips_image = vips_image.clone();
     pool.execute(move || {
@@ -86,17 +75,19 @@ pub fn write_vips_image(ctx: CallContext) -> Result<JsUndefined> {
         target_custom.set_on_write(move |write_buf| {
             unsafe {
                 write_tsf.call(
-                    Ok((native.clone(), std::mem::transmute(write_buf))), // expand write_buf lifetime to 'static
+                    Ok((tx.clone(), std::mem::transmute(write_buf))), // expand write_buf lifetime to 'static
                     ThreadsafeFunctionCallMode::Blocking,
                 );
             }
 
-            native.rx.recv().unwrap().unwrap_or(0)
+            rx.recv().unwrap().unwrap_or(0)
         });
 
         vips_image.write_to_target(&target_custom, vips_write_suffix.as_str());
 
-        resolve_tsf.call(Ok(true), ThreadsafeFunctionCallMode::Blocking);
+        resolve_tsf.call(Ok(vips_image_obj_ref), ThreadsafeFunctionCallMode::Blocking);
+
+        libvips_rs::thread_shutdown();
     });
 
     Ok(ctx.env.get_undefined().unwrap())
@@ -104,13 +95,11 @@ pub fn write_vips_image(ctx: CallContext) -> Result<JsUndefined> {
 
 #[js_function(2)]
 pub fn register_write_size(ctx: CallContext) -> Result<JsUndefined> {
-    let ctx_obj = ctx.get::<JsExternal>(0)?;
+    let tx_js = ctx.get::<JsObject>(0)?;
+    let tx = ctx.env.unwrap::<flume::Sender<Option<i64>>>(&tx_js)?;
     let write_size = ctx.get::<JsNumber>(1)?.get_int64()?;
-    let native = ctx
-        .env
-        .get_value_external::<Arc<WriteContextNative>>(&ctx_obj)?;
 
-    native.tx.send(Some(write_size)).unwrap();
+    tx.send(Some(write_size)).unwrap();
 
     Ok(ctx.env.get_undefined().unwrap())
 }
