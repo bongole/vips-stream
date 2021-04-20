@@ -8,7 +8,7 @@ mod writeable;
 
 use std::{os::raw::c_int, sync::Mutex};
 
-use napi::{CallContext, JsNumber, JsObject, JsUndefined, Result};
+use napi::{CallContext, JsBoolean, JsObject, JsUndefined, Result};
 use once_cell::sync::OnceCell;
 use threadpool::ThreadPool;
 
@@ -48,9 +48,9 @@ extern "C" {
 }
 
 #[js_function(0)]
-pub fn free_memory(ctx: CallContext) -> Result<JsNumber> {
+pub fn free_memory(ctx: CallContext) -> Result<JsBoolean> {
     let r = unsafe{ malloc_trim(0) };
-    ctx.env.create_int32(r)
+    ctx.env.get_boolean(r == 1)
 }
 
 #[module_exports]

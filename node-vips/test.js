@@ -71,9 +71,13 @@ let cancel_token = setInterval(() => {
     console.log('free memory ' + addon.freeMemory())
 }, 1000);
 
+function sleep(t) {
+    return new Promise((r) => setTimeout(r, t))
+}
+
 (async () => {
     console.log('start ' + process.pid)
-    //const hd = new memwatch.HeapDiff();
+    const hd = new memwatch.HeapDiff();
     showMemUsage();
     console.log('=====================')
     showMemStats()
@@ -83,14 +87,19 @@ let cancel_token = setInterval(() => {
     }
 
     await Promise.all(proms)
-    //const diff = hd.end();
-    //console.log("memwatch diff:", JSON.stringify(diff, null, 2));
     console.log('free memory ' + addon.freeMemory())
-    await new Promise((r) => setTimeout(r, 100))
+    await sleep(100)
     console.log('=====================')
     showMemUsage();
     console.log('=====================')
     showMemStats()
     clearInterval(cancel_token)
+    /*
+    global.gc()
+    const diff = hd.end();
+    console.log("memwatch diff:", JSON.stringify(diff, null, 2));
+    */
+
+    await sleep(10000)
     //await new Promise((r) => setTimeout(r, 3000))
 })();
