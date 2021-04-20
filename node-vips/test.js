@@ -28,7 +28,8 @@ async function test(idx) {
 
     //console.log('vips = ', vips)
 
-    const write_stream = fs.createWriteStream(`/tmp/test/thumb${idx}.jpg`);
+    //const write_stream = fs.createWriteStream(`/tmp/test/thumb${idx}.jpg`);
+    const write_stream = fs.createWriteStream('/dev/null');
     let r = await new Promise((res, rej) => {
         const res_wrap = (_err, v) => {
             write_stream.end(() => {
@@ -66,32 +67,30 @@ function showMemStats() {
     }
 }
 
+let cancel_token = setInterval(() => {
+    console.log('free memory ' + addon.freeMemory())
+}, 1000);
+
 (async () => {
-    global.gc()
     console.log('start ' + process.pid)
-    //await new Promise((r) => setTimeout(r, 10000))
-    const hd = new memwatch.HeapDiff();
+    //const hd = new memwatch.HeapDiff();
     showMemUsage();
+    console.log('=====================')
     showMemStats()
     let proms = [];
-    for (let i = 0; i < 50; i++) {
+    for (let i = 0; i < 100; i++) {
         proms.push(test(i))
-        //showMemStats()
-        //showMemUsage();
-        //console.log('=====================')
     }
 
     await Promise.all(proms)
-    global.gc()
-    showMemStats()
+    //const diff = hd.end();
+    //console.log("memwatch diff:", JSON.stringify(diff, null, 2));
+    console.log('free memory ' + addon.freeMemory())
+    await new Promise((r) => setTimeout(r, 100))
     console.log('=====================')
     showMemUsage();
-    console.log('end')
-    addon.shutdown()
-    global.gc()
-    const diff = hd.end();
-    console.log("memwatch diff:", JSON.stringify(diff, null, 2));
+    console.log('=====================')
     showMemStats()
-    showMemUsage();
+    clearInterval(cancel_token)
     //await new Promise((r) => setTimeout(r, 3000))
 })();

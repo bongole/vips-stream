@@ -85,6 +85,7 @@ pub fn write_vips_image(ctx: CallContext) -> Result<JsUndefined> {
 
         resolve_tsf.call(Ok(vips_image_obj_ref), ThreadsafeFunctionCallMode::Blocking);
 
+        libvips_rs::clear_error();
         libvips_rs::thread_shutdown();
     });
 

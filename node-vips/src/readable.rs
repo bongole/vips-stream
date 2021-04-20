@@ -81,12 +81,13 @@ pub fn create_vips_image(ctx: CallContext) -> Result<JsUndefined> {
         });
 
         let vi = libvips_rs::new_image_from_source(custom_src);
-        //let vi = vi.thumbnail(300); // TODO image processing
+        let vi = vi.thumbnail(300); // TODO image processing
         resolve_tsf.call(
             Ok(Arc::new(Mutex::new(vi))),
             ThreadsafeFunctionCallMode::Blocking,
         );
 
+        libvips_rs::clear_error();
         libvips_rs::thread_shutdown();
     });
 

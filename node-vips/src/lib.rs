@@ -6,9 +6,9 @@ extern crate napi_derive;
 mod readable;
 mod writeable;
 
-use std::sync::Mutex;
+use std::{os::raw::c_int, sync::Mutex};
 
-use napi::{CallContext, JsObject, JsUndefined, Result};
+use napi::{CallContext, JsNumber, JsObject, JsUndefined, Result};
 use once_cell::sync::OnceCell;
 use threadpool::ThreadPool;
 
@@ -42,10 +42,21 @@ pub fn get_mem_stats(ctx: CallContext) -> Result<JsObject> {
     Ok(obj)
 }
 
+extern "C" {
+    #[link(name="c")]
+    fn malloc_trim(__pad: usize) -> c_int;
+}
+
+#[js_function(0)]
+pub fn free_memory(ctx: CallContext) -> Result<JsNumber> {
+    let r = unsafe{ malloc_trim(0) };
+    ctx.env.create_int32(r)
+}
+
 #[module_exports]
 fn init(mut exports: JsObject) -> Result<()> {
     libvips_rs::init();
-    libvips_rs::leak_set(true);
+    //libvips_rs::leak_set(true);
     libvips_rs::cache_set_max_mem(0);
     libvips_rs::cache_set_max(0);
 
@@ -64,6 +75,7 @@ fn init(mut exports: JsObject) -> Result<()> {
 
     exports.create_named_method("shutdown", shutdown)?;
     exports.create_named_method("getMemStats", get_mem_stats)?;
+    exports.create_named_method("freeMemory", free_memory)?;
 
     Ok(())
 }
