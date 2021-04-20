@@ -1,4 +1,4 @@
-use std::{env, ffi::{CStr}, os::raw::c_char, sync::Once};
+use std::{env, ffi::CStr, os::raw::c_char, sync::Once};
 
 mod vips_image;
 mod vips_source_custom;
@@ -33,7 +33,6 @@ pub fn version() -> String {
         format!("{}.{}.{}", major, minor, patch)
     }
 }
-
 
 #[inline]
 fn to_bool(i: i32) -> bool {
@@ -88,4 +87,32 @@ pub fn leak_set(b: bool) {
 
 pub fn shutdown() {
     unsafe { libvips_sys::vips_shutdown() }
+}
+
+pub fn tracked_get_mem() -> u64 {
+    unsafe { libvips_sys::vips_tracked_get_mem() }
+}
+
+pub fn tracked_get_mem_highwater() -> u64 {
+    unsafe { libvips_sys::vips_tracked_get_mem_highwater() }
+}
+
+pub fn cache_get_max_mem() -> u64 {
+    unsafe { libvips_sys::vips_cache_get_max_mem() }
+}
+
+pub fn cache_get_size() -> i32 {
+    unsafe { libvips_sys::vips_cache_get_size() }
+}
+
+pub fn cache_get_max() -> i32 {
+    unsafe { libvips_sys::vips_cache_get_max() }
+}
+
+pub fn cache_set_max_mem(size: u64) {
+    unsafe { libvips_sys::vips_cache_set_max_mem(size) }
+}
+
+pub fn cache_set_max(size: i32) {
+    unsafe { libvips_sys::vips_cache_set_max(size) }
 }

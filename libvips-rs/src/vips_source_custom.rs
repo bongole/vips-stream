@@ -8,9 +8,18 @@ use std::{
 struct ReadClosureWrapper {
     pub(crate) closure: Box<dyn FnMut(&mut [u8]) -> i64 + Send + 'static>,
 }
+
+/*
+impl Drop for ReadClosureWrapper {
+    fn drop(&mut self) {
+        println!("drop read closure wrapper");
+    }
+}
+*/
+
 pub struct VipsSourceCustom {
     pub(crate) vips_source_custom: *mut libvips_sys::VipsSourceCustom,
-    pub read_handler: Option<(u64, *mut c_void)>,
+    pub(crate) read_handler: Option<(u64, *mut c_void)>,
 }
 
 unsafe impl Send for VipsSourceCustom {}
@@ -32,32 +41,31 @@ impl Drop for VipsSourceCustom {
     }
 }
 
+unsafe extern "C" fn read_wrapper(
+    _source: *mut libvips_sys::VipsSourceCustom,
+    buf: *mut c_void,
+    buf_len: libvips_sys::gint64,
+    data: *mut c_void,
+) -> libvips_sys::gint64 {
+    let mut wrapper = Box::from_raw(data as *mut ReadClosureWrapper);
+    let buf = slice_from_raw_parts_mut(buf as *mut _, buf_len as _);
+    let read_size = (wrapper.closure)(buf.as_mut().unwrap());
+
+    Box::leak(wrapper);
+
+    read_size
+}
+
 impl VipsSourceCustom {
     pub fn set_on_read<F>(&mut self, f: F)
     where
         F: FnMut(&mut [u8]) -> i64 + Send + 'static,
     {
-        let (handler_id, leaked_closure_ptr) = unsafe {
-            #[allow(non_snake_case)]
-            unsafe extern "C" fn read_wrapper(
-                _source: *mut libvips_sys::VipsSourceCustom,
-                buf: *mut c_void,
-                buf_len: libvips_sys::gint64,
-                data: *mut c_void,
-            ) -> libvips_sys::gint64 {
-                let mut wrapper = Box::from_raw(data as *mut ReadClosureWrapper);
-                let buf = slice_from_raw_parts_mut(buf as *mut _, buf_len as _);
-                let read_size = (wrapper.closure)(buf.as_mut().unwrap());
+        let leaked_closure_ref = Box::leak(Box::new(ReadClosureWrapper {
+            closure: Box::new(f),
+        }));
 
-                Box::leak(wrapper);
-
-                read_size
-            }
-
-            let leaked_closure_ref = Box::leak(Box::new(ReadClosureWrapper {
-                closure: Box::new(f),
-            }));
-
+        let r = unsafe {
             let handler_id = libvips_sys::g_signal_connect(
                 self.vips_source_custom as libvips_sys::gpointer,
                 "read\0".as_ptr() as *const c_char,
@@ -68,7 +76,7 @@ impl VipsSourceCustom {
             (handler_id, leaked_closure_ref as *mut _ as *mut _)
         };
 
-        self.read_handler = Some((handler_id, leaked_closure_ptr));
+        self.read_handler = Some(r);
     }
 
     pub fn read_position(&self) -> i64 {

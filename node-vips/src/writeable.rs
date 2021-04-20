@@ -20,9 +20,7 @@ pub fn drop_vips_image(ctx: CallContext) -> Result<JsUndefined> {
 #[js_function(5)]
 pub fn write_vips_image(ctx: CallContext) -> Result<JsUndefined> {
     let vips_image_obj = ctx.get::<JsObject>(0)?;
-    let vips_image = ctx
-        .env
-        .unwrap::<Arc<Mutex<VipsImage>>>(&vips_image_obj)?;
+    let vips_image = ctx.env.unwrap::<Arc<Mutex<VipsImage>>>(&vips_image_obj)?;
     let vips_image_obj_ref = ctx.env.create_reference(vips_image_obj)?;
 
     let vips_write_suffix: String = ctx.get::<JsString>(1)?.into_utf8()?.as_str()?.to_string();
@@ -39,7 +37,7 @@ pub fn write_vips_image(ctx: CallContext) -> Result<JsUndefined> {
             ctx.env.wrap(&mut tx_js, ctx.value.0)?;
             let buffer_js = ctx.env.create_buffer_copy(ctx.value.1).unwrap().into_raw();
 
-            Ok(vec![tx_js, buffer_js.coerce_to_object().unwrap()])
+            Ok(vec![tx_js.into_unknown(), buffer_js.into_unknown()])
         },
     )?;
 

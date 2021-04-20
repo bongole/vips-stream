@@ -13,6 +13,7 @@
     "@node-rs/helper": "^1.0.0"
   },
   "devDependencies": {
+    "@airbnb/node-memwatch": "^2.0.0",
     "@napi-rs/cli": "^1.0.0"
   },
   "engines": {

@@ -9,8 +9,12 @@ mod bench_tests {
     #[test]
     fn bench() {
         libvips_rs::init();
+        libvips_rs::leak_set(true);
 
-        for _ in 0..300 {
+        libvips_rs::cache_set_max_mem(0);
+        libvips_rs::cache_set_max(0);
+
+        for _ in 0..100 {
             let mut src = libvips_rs::new_source_custom();
             let mut target = libvips_rs::new_target_custom();
 
@@ -29,6 +33,13 @@ mod bench_tests {
 
             libvips_rs::clear_error();
             libvips_rs::thread_shutdown();
+
+            let mem = libvips_rs::tracked_get_mem() / (1024 * 1024);
+            println!("mem_current {} MiB", mem);
+
         }
+
+        unsafe { libvips_sys::vips_object_print_all() }
+
     }
 }
