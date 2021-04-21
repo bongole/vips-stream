@@ -82,7 +82,10 @@ pub fn write_vips_image(ctx: CallContext) -> Result<JsUndefined> {
         });
 
         let r = vips_image.write_to_target(&target_custom, vips_write_suffix.as_str());
-        resolve_tsf.call(Ok((vips_image_obj_ref, r)), ThreadsafeFunctionCallMode::Blocking);
+        resolve_tsf.call(
+            Ok((vips_image_obj_ref, r)),
+            ThreadsafeFunctionCallMode::Blocking,
+        );
 
         libvips_rs::clear_error();
         libvips_rs::thread_shutdown();

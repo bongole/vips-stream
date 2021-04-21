@@ -26,7 +26,7 @@ async function test(idx) {
         })
     })
 
-    addon.thumbnail(vips, 1000);
+    addon.thumbnail(vips, 300);
 
     //console.log('vips = ', vips)
 
@@ -39,16 +39,17 @@ async function test(idx) {
             })
         }
 
-        addon.writeVipsImage(vips, ".jpg", res_wrap, rej, async (err, ctx, buf, mystruct) => {
+        addon.writeVipsImage(vips, ".jpg", res_wrap, rej, async (err, ctx, buf) => {
             if (write_stream.writableEnded) return
 
-            let r = write_stream.write(buf)
+            const buf_len = buf.length
+            const r = write_stream.write(buf)
             if (!r) {
                 await new Promise((r) => write_stream.once('drain', r))
                 console.log('drain')
             }
 
-            addon.registerWriteSize(ctx, buf.length)
+            addon.registerWriteSize(ctx, buf_len)
         });
     });
 
@@ -84,7 +85,7 @@ function sleep(t) {
     console.log('=====================')
     showMemStats()
     let proms = [];
-    for (let i = 0; i < 100; i++) {
+    for (let i = 0; i < 1; i++) {
         proms.push(test(i))
     }
 
