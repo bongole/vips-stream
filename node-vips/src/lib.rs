@@ -64,6 +64,7 @@ fn init(mut exports: JsObject) -> Result<()> {
     THREAD_POOL.set(thread_pool).unwrap();
 
     exports.create_named_method("createVipsImage", readable::create_vips_image)?;
+    exports.create_named_method("thumbnail", readable::vips_image_thumbnail)?;
     exports.create_named_method("registerReadBuf", readable::register_read_buf)?;
 
     exports.create_named_method("writeVipsImage", writeable::write_vips_image)?;

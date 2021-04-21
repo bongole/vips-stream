@@ -20,7 +20,7 @@ impl Drop for VipsImage {
 }
 
 impl VipsImage {
-    pub fn thumbnail(mut self, width: i32) -> Self {
+    pub fn thumbnail(&mut self, width: i32) {
         unsafe {
             let out_ptr = null_mut::<libvips_sys::VipsImage>();
             libvips_sys::vips_thumbnail_image(
@@ -34,8 +34,6 @@ impl VipsImage {
 
             self.vips_image = out_ptr;
         }
-
-        self
     }
 
     pub fn write_to_target(&self, target: &VipsTargetCustom, suffix: &str) -> bool {

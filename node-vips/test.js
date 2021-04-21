@@ -26,6 +26,8 @@ async function test(idx) {
         })
     })
 
+    addon.thumbnail(vips, 300);
+
     //console.log('vips = ', vips)
 
     //const write_stream = fs.createWriteStream(`/tmp/test/thumb${idx}.jpg`);
@@ -68,8 +70,8 @@ function showMemStats() {
 }
 
 let cancel_token = setInterval(() => {
-    console.log('free memory ' + addon.freeMemory())
-}, 1000);
+    //console.log('free memory ' + addon.freeMemory())
+}, 10000);
 
 function sleep(t) {
     return new Promise((r) => setTimeout(r, t))
@@ -100,6 +102,6 @@ function sleep(t) {
     console.log("memwatch diff:", JSON.stringify(diff, null, 2));
     */
 
-    await sleep(10000)
+    //await sleep(10000)
     //await new Promise((r) => setTimeout(r, 3000))
 })();

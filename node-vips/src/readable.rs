@@ -3,11 +3,7 @@
 use std::sync::{Arc, Mutex};
 
 use libvips_rs::VipsImage;
-use napi::{
-    threadsafe_function::{ThreadSafeCallContext, ThreadsafeFunctionCallMode},
-    CallContext, JsBuffer, JsBufferValue, JsFunction, JsObject, JsUndefined, JsUnknown, Ref,
-    Result, ValueType,
-};
+use napi::{CallContext, JsBuffer, JsBufferValue, JsFunction, JsNumber, JsObject, JsUndefined, JsUnknown, Ref, Result, ValueType, threadsafe_function::{ThreadSafeCallContext, ThreadsafeFunctionCallMode}};
 
 #[js_function(3)]
 pub fn create_vips_image(ctx: CallContext) -> Result<JsUndefined> {
@@ -81,7 +77,6 @@ pub fn create_vips_image(ctx: CallContext) -> Result<JsUndefined> {
         });
 
         let vi = libvips_rs::new_image_from_source(custom_src);
-        let vi = vi.thumbnail(300); // TODO image processing
         resolve_tsf.call(
             Ok(Arc::new(Mutex::new(vi))),
             ThreadsafeFunctionCallMode::Blocking,
@@ -91,7 +86,18 @@ pub fn create_vips_image(ctx: CallContext) -> Result<JsUndefined> {
         libvips_rs::thread_shutdown();
     });
 
-    Ok(ctx.env.get_undefined().unwrap())
+    ctx.env.get_undefined()
+}
+
+#[js_function(2)]
+pub fn vips_image_thumbnail(ctx: CallContext) -> Result<JsUndefined> {
+    let vips_image_obj = ctx.get::<JsObject>(0)?;
+    let vips_image = ctx.env.unwrap::<Arc<Mutex<VipsImage>>>(&vips_image_obj)?;
+    let width = ctx.get::<JsNumber>(1)?.get_int32()?;
+
+    vips_image.lock().unwrap().thumbnail(width);
+
+    ctx.env.get_undefined()
 }
 
 #[js_function(2)]
