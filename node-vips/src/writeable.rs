@@ -81,9 +81,11 @@ pub fn write_vips_image(ctx: CallContext) -> Result<JsUndefined> {
             rx.recv().unwrap().unwrap_or(0)
         });
 
-        vips_image.write_to_target(&target_custom, vips_write_suffix.as_str());
+        target_custom.set_on_finish(move || {
+            resolve_tsf.call(Ok(vips_image_obj_ref), ThreadsafeFunctionCallMode::Blocking);
+        });
 
-        resolve_tsf.call(Ok(vips_image_obj_ref), ThreadsafeFunctionCallMode::Blocking);
+        vips_image.write_to_target(&target_custom, vips_write_suffix.as_str());
 
         libvips_rs::clear_error();
         libvips_rs::thread_shutdown();

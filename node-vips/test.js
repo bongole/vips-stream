@@ -26,7 +26,7 @@ async function test(idx) {
         })
     })
 
-    addon.thumbnail(vips, 300);
+    addon.thumbnail(vips, 1000);
 
     //console.log('vips = ', vips)
 
@@ -70,8 +70,8 @@ function showMemStats() {
 }
 
 let cancel_token = setInterval(() => {
-    //console.log('free memory ' + addon.freeMemory())
-}, 10000);
+    console.log('free memory ' + addon.freeMemory())
+}, 3000);
 
 function sleep(t) {
     return new Promise((r) => setTimeout(r, t))

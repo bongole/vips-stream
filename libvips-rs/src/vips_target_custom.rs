@@ -1,11 +1,22 @@
-use std::{ffi::c_void, mem::transmute, os::raw::c_char, ptr::{null_mut, slice_from_raw_parts}};
+use std::{
+    ffi::c_void,
+    mem::transmute,
+    os::raw::c_char,
+    ptr::{null_mut, slice_from_raw_parts},
+};
 
-pub type WriteHandler = dyn FnMut(&[u8]) -> i64 + Send + 'static;
-pub type FinishHandler = dyn FnMut() + Send + 'static;
+pub type OnWriteHandler = dyn FnMut(&[u8]) -> i64 + Send + 'static;
+pub type OnFinishHandler = dyn FnOnce() + Send + 'static;
+struct OnFinishClosureWrapper {
+    pub(crate) closure: Option<Box<OnFinishHandler>>,
+}
+struct OnWriteClosureWrapper {
+    pub(crate) closure: Box<OnWriteHandler>,
+}
 pub struct VipsTargetCustom {
     pub(crate) vips_target_custom: *mut libvips_sys::VipsTargetCustom,
-    pub(crate) write_handler: (Option<u64>, Option<Box<WriteHandler>>),
-    pub(crate) finish_handler: (Option<u64>, Option<Box<FinishHandler>>)
+    pub(crate) write_handler: Option<(u64, *mut c_void)>,
+    pub(crate) finish_handler: Option<(u64, *mut c_void)>,
 }
 
 unsafe impl Send for VipsTargetCustom {}
@@ -16,12 +27,14 @@ impl Drop for VipsTargetCustom {
             if !self.vips_target_custom.is_null() {
                 let target = self.vips_target_custom as libvips_sys::gpointer;
 
-                if let Some(handler_id) = self.write_handler.0 {
+                if let Some((handler_id, leaked_closure_ptr)) = self.write_handler {
                     libvips_sys::g_signal_handler_disconnect(target, handler_id);
+                    let _ = Box::from_raw(leaked_closure_ptr as *mut OnWriteClosureWrapper);
                 }
 
-                if let Some(handler_id) = self.finish_handler.0 {
+                if let Some((handler_id, leaked_closure_ptr)) = self.finish_handler {
                     libvips_sys::g_signal_handler_disconnect(target, handler_id);
+                    let _ = Box::from_raw(leaked_closure_ptr as *mut OnFinishClosureWrapper);
                 }
 
                 libvips_sys::g_object_unref(target);
@@ -35,63 +48,72 @@ impl VipsTargetCustom {
     where
         F: FnMut(&[u8]) -> i64 + Send + 'static,
     {
-        let closure = Box::new(f);
+        let leaked_closure_ref = Box::leak(Box::new(OnWriteClosureWrapper {
+            closure: Box::new(f),
+        }));
 
-        let handler_id = unsafe {
-            #[allow(non_snake_case)]
+        let r = unsafe {
             unsafe extern "C" fn write_wrapper(
                 _target: *mut libvips_sys::VipsTargetCustom,
                 buf: *mut c_void,
                 buf_len: libvips_sys::gint64,
                 data: *mut c_void,
             ) -> libvips_sys::gint64 {
-                let this: &mut VipsTargetCustom = std::mem::transmute(data);
-                if let Some(callback) = this.write_handler.1.as_mut() {
-                    let buf = slice_from_raw_parts(buf as *const u8, buf_len as usize);
-                    callback(buf.as_ref().unwrap())
-                } else {
-                    0
-                }
+                let mut wrapper = Box::from_raw(data as *mut OnWriteClosureWrapper);
+                let buf = slice_from_raw_parts(buf as *const u8, buf_len as usize);
+                let r = (wrapper.closure)(buf.as_ref().unwrap());
+
+                Box::leak(wrapper);
+
+                r
             }
 
-            libvips_sys::g_signal_connect(
+            let handler_id = libvips_sys::g_signal_connect(
                 self.vips_target_custom as libvips_sys::gpointer,
                 "write\0".as_ptr() as *const c_char,
                 Some(transmute(write_wrapper as *const fn())),
-                self as *const _ as libvips_sys::gpointer,
-            )
+                leaked_closure_ref as *const _ as libvips_sys::gpointer,
+            );
+
+            (handler_id, leaked_closure_ref as *mut _ as *mut c_void)
         };
 
-        self.write_handler = (Some(handler_id), Some(closure));
+        self.write_handler = Some(r);
     }
 
     pub fn set_on_finish<F>(&mut self, f: F)
     where
-        F: FnMut() + Send + 'static,
+        F: FnOnce() + Send + 'static,
     {
-        let closure = Box::new(f);
+        let leaked_closure_ref = Box::leak(Box::new(OnFinishClosureWrapper {
+            closure: Some(Box::new(f)),
+        }));
 
-        let handler_id = unsafe {
-            #[allow(non_snake_case)]
+        let r = unsafe {
             unsafe extern "C" fn finish_wrapper(
                 _target: *mut libvips_sys::VipsTargetCustom,
                 data: *mut c_void,
             ) {
-                let this: &mut VipsTargetCustom = std::mem::transmute(data);
-                if let Some(callback) = this.finish_handler.1.as_mut() {
-                    callback()
+                let mut wrapper = Box::from_raw(data as *mut OnFinishClosureWrapper);
+                if let Some(closure) = wrapper.closure {
+                    closure();
+                    wrapper.closure = None;
                 }
+
+                Box::leak(wrapper);
             }
 
-            libvips_sys::g_signal_connect(
+            let handler_id = libvips_sys::g_signal_connect(
                 self.vips_target_custom as libvips_sys::gpointer,
                 "finish\0".as_ptr() as *const c_char,
                 Some(transmute(finish_wrapper as *const fn())),
-                self as *const _ as libvips_sys::gpointer,
-            )
+                leaked_closure_ref as *const _ as libvips_sys::gpointer,
+            );
+
+            (handler_id, leaked_closure_ref as *mut _ as *mut c_void)
         };
 
-        self.finish_handler = (Some(handler_id), Some(closure));
+        self.finish_handler = Some(r);
     }
 
     pub fn is_finished(&self) -> bool {
@@ -105,8 +127,8 @@ impl VipsTargetCustom {
 pub fn new_target_custom() -> VipsTargetCustom {
     let mut vtc = VipsTargetCustom {
         vips_target_custom: null_mut(),
-        write_handler: (None, Default::default()),
-        finish_handler: (None, Default::default()),
+        write_handler: Default::default(),
+        finish_handler: Default::default(),
     };
 
     unsafe {
