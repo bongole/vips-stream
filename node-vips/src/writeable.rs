@@ -44,15 +44,15 @@ pub fn write_vips_image(ctx: CallContext) -> Result<JsUndefined> {
     let resolve_tsf = ctx.env.create_threadsafe_function(
         &resolve_func_js,
         0,
-        |ctx: ThreadSafeCallContext<Ref<()>>| {
+        |ctx: ThreadSafeCallContext<(Ref<()>, bool)>| {
             let vips_image_obj = ctx
                 .env
-                .get_reference_value_unchecked::<JsObject>(&ctx.value)?;
+                .get_reference_value_unchecked::<JsObject>(&ctx.value.0)?;
             ctx.env
                 .drop_wrapped::<Arc<Mutex<VipsImage>>>(vips_image_obj)?;
-            ctx.value.unref(ctx.env)?;
+            ctx.value.0.unref(ctx.env)?;
 
-            Ok(vec![ctx.env.get_boolean(true).unwrap()])
+            Ok(vec![ctx.env.get_boolean(ctx.value.1).unwrap()])
         },
     )?;
 
@@ -81,11 +81,8 @@ pub fn write_vips_image(ctx: CallContext) -> Result<JsUndefined> {
             rx.recv().unwrap().unwrap_or(0)
         });
 
-        target_custom.set_on_finish(move || {
-            resolve_tsf.call(Ok(vips_image_obj_ref), ThreadsafeFunctionCallMode::Blocking);
-        });
-
-        vips_image.write_to_target(&target_custom, vips_write_suffix.as_str());
+        let r = vips_image.write_to_target(&target_custom, vips_write_suffix.as_str());
+        resolve_tsf.call(Ok((vips_image_obj_ref, r)), ThreadsafeFunctionCallMode::Blocking);
 
         libvips_rs::clear_error();
         libvips_rs::thread_shutdown();
