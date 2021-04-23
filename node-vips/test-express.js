@@ -39,19 +39,22 @@ class Vips {
         return this
     }
 
+    resize(vscale) {
+        addon.resize(this._vips, vscale)
+        return this
+    }
+
     async write(write_stream, suffix = ".jpg", idx) {
         write_stream.once('error', () => {
             console.log('write error ' + idx)
         })
 
         write_stream.once('finish', () => {
-            console.log('write finish ' + idx)
+            //console.log('write finish ' + idx)
         })
 
-        let closed = false
         write_stream.once('close', () => {
-            closed = true
-            console.log('write close' + idx)
+            //console.log('write close ' + idx)
         })
 
         return await new Promise((res, rej) => {
@@ -60,7 +63,7 @@ class Vips {
             };
 
             addon.writeVipsImage(this._vips, suffix, res_wrap, rej, async (err, ctx, buf, mystruct) => {
-                if (closed) {
+                if (!write_stream.writable) {
                     addon.registerWriteSize(ctx, -1)
                     return
                 }
@@ -70,15 +73,14 @@ class Vips {
                     addon.registerWriteSize(ctx, buf.length)
                 } else {
                     console.log('before drain ' + idx)
-                    await Promise.race([new Promise((r) => write_stream.once('drain', r)), sleep(1000)])
-                    if (closed) {
+                    let r = await Promise.race([new Promise((r) => write_stream.once('drain', () => r('drain'))), sleep(1000)])
+                    if (r === 'drain') {
                         //write_stream.removeAllListeners();
-                        console.log('after drain not writable' + idx)
-                        addon.registerWriteSize(ctx, -1)
-                    } else {
-                        console.log('after drain writable' + idx)
+                        //console.log('after drain writable ' + idx)
                         addon.registerWriteSize(ctx, buf.length)
-
+                    } else {
+                        console.log('after drain not writable ' + idx)
+                        addon.registerWriteSize(ctx, -1)
                     }
                 }
             });
@@ -98,13 +100,13 @@ function format(n) {
     return ('000' + n).slice(-3);
 }
 
-app.get('/stream/:width', async (req, res) => {
+app.get('/stream', async (req, res) => {
     let myid = ++id;
     const read_stream = fs.createReadStream("/home/bongole/image/4k.jpg");
     const vips = await Vips.create(read_stream);
-    console.log('start ' + format(myid))
-    let r = await vips.thumbnail(parseInt(req.params['width'])).write(res, ".jpg", format(myid));
-    console.log('end ' + format(myid) + ' ' + r)
+    //console.log('start ' + format(myid))
+    let r = await vips.resize(0.109).write(res, ".jpg", format(myid));
+    //console.log('end ' + format(myid) + ' ' + r)
     res.end();
 });
 

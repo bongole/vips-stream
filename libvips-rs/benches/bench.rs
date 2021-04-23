@@ -1,9 +1,10 @@
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use std::{ io::{Read, Write}, fs::File };
+use criterion::{criterion_group, criterion_main, Criterion};
+use std::{ io::{Read, Write, BufReader}, fs::File };
+use std::time::Instant;
 
 fn resize() {
     libvips_rs::init();
-    libvips_rs::leak_set(true);
+    //libvips_rs::leak_set(true);
 
     libvips_rs::cache_set_max_mem(0);
     libvips_rs::cache_set_max(0);
@@ -19,9 +20,12 @@ fn resize() {
     let mut outfile = File::create("/dev/null").unwrap();
     target.set_on_write(move |buf| outfile.write(buf).unwrap() as i64);
 
+    //let start = Instant::now();
     let mut vi = libvips_rs::new_image_from_source(src);
     vi.resize(0.109);
-    vi.write_to_target(&target, ".png");
+    vi.write_to_target(&target, ".jpg");
+    //let duration = start.elapsed();
+    //println!("elapsed {:?}", duration);
 
     /*
     libvips_rs::clear_error();

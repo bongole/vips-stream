@@ -26,7 +26,8 @@ async function test(idx) {
         })
     })
 
-    addon.thumbnail(vips, 300);
+    //addon.thumbnail(vips, 300);
+    addon.resize(vips, 0.109);
 
     //console.log('vips = ', vips)
 
@@ -85,7 +86,7 @@ function sleep(t) {
     console.log('=====================')
     showMemStats()
     let proms = [];
-    for (let i = 0; i < 1; i++) {
+    for (let i = 0; i < 100; i++) {
         proms.push(test(i))
     }
 

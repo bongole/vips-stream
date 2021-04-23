@@ -101,6 +101,18 @@ pub fn vips_image_thumbnail(ctx: CallContext) -> Result<JsUndefined> {
 }
 
 #[js_function(2)]
+pub fn vips_image_resize(ctx: CallContext) -> Result<JsUndefined> {
+    let vips_image_obj = ctx.get::<JsObject>(0)?;
+    let vips_image = ctx.env.unwrap::<Arc<Mutex<VipsImage>>>(&vips_image_obj)?;
+    let vscale= ctx.get::<JsNumber>(1)?.get_double()?;
+
+    vips_image.lock().unwrap().resize(vscale);
+
+    ctx.env.get_undefined()
+}
+
+
+#[js_function(2)]
 pub fn register_read_buf(ctx: CallContext) -> Result<JsUndefined> {
     let tx_js = ctx.get::<JsObject>(0)?;
     let tx = ctx
