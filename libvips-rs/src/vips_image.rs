@@ -36,6 +36,22 @@ impl VipsImage {
         }
     }
 
+    pub fn resize(&mut self, vscale: f64) {
+        unsafe {
+            let out_ptr = null_mut::<libvips_sys::VipsImage>();
+            libvips_sys::vips_resize(
+                self.vips_image,
+                transmute(&out_ptr),
+                vscale,
+                null_mut::<*const c_void>(),
+            );
+
+            libvips_sys::g_object_unref(self.vips_image as libvips_sys::gpointer);
+
+            self.vips_image = out_ptr;
+        }
+    }
+
     pub fn write_to_target(&self, target: &VipsTargetCustom, suffix: &str) -> bool {
         unsafe {
             let suffix_k = CString::new(suffix).unwrap();
