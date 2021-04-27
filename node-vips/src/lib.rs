@@ -5,6 +5,8 @@ extern crate napi_derive;
 
 mod readable;
 mod writeable;
+mod buffer_list;
+mod bench;
 
 use std::{os::raw::c_int, sync::Mutex};
 
@@ -72,8 +74,10 @@ fn init(mut exports: JsObject) -> Result<()> {
     exports.create_named_method("registerWriteSize", writeable::register_write_size)?;
     exports.create_named_method("dropVipsImage", writeable::drop_vips_image)?;
 
-    exports.create_named_method("readBufTest", readable::read_buf_test)?;
-    exports.create_named_method("registerReadBufTest", readable::register_read_buf_test)?;
+    exports.create_named_method("callTest", bench::call_test)?;
+    exports.create_named_method("registerCallTest", bench::register_call_test)?;
+    exports.create_named_method("readBufTest", bench::read_buf_test)?;
+    exports.create_named_method("registerReadBufTest", bench::register_read_buf_test)?;
 
     exports.create_named_method("shutdown", shutdown)?;
     exports.create_named_method("getMemStats", get_mem_stats)?;
