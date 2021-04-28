@@ -8,11 +8,16 @@ mod buffer_list;
 mod readable;
 mod writeable;
 
-use parking_lot::Mutex;
-use std::os::raw::c_int;
+use buffer_list::BufferList;
+use std::{ops::Deref, os::raw::c_int};
 
-use napi::{CallContext, JsBoolean, JsObject, JsUndefined, Result};
+use napi::{
+    CallContext, Env, JsBoolean, JsBuffer, JsBufferValue, JsObject, JsUndefined, JsUnknown,
+    Property, Ref, Result, ValueType,
+};
 use once_cell::sync::OnceCell;
+use parking_lot::{Condvar, Mutex};
+use std::sync::Arc;
 use threadpool::ThreadPool;
 
 const THREAD_POOL_SIZE: usize = 10;
@@ -59,8 +64,64 @@ pub fn free_memory(ctx: CallContext) -> Result<JsBoolean> {
     ctx.env.get_boolean(r == 1)
 }
 
+struct RefJsBufferValue {
+    pub(crate) inner: Ref<JsBufferValue>,
+}
+
+impl AsRef<[u8]> for RefJsBufferValue {
+    fn as_ref(&self) -> &[u8] {
+        self.inner.as_ref()
+    }
+}
+
+impl Deref for RefJsBufferValue {
+    type Target = [u8];
+
+    fn deref(&self) -> &Self::Target {
+        self.inner.deref().deref()
+    }
+}
+
+pub(crate) struct BufferListClass {
+    pub(crate) buffer_list: Mutex<BufferList<RefJsBufferValue>>,
+    pub(crate) condvar: Condvar,
+}
+
+#[js_function(1)]
+pub fn buffer_list_class_ctor(ctx: CallContext) -> Result<JsUndefined> {
+    let hwm_opt_js = ctx.get::<JsUnknown>(0)?;
+    let hwm_opt_t = hwm_opt_js.get_type()?;
+    let hwm: Option<usize> = if hwm_opt_t == ValueType::Null || hwm_opt_t == ValueType::Undefined {
+        Some(128 * 1024) // default 128KiB
+    } else {
+        Some(hwm_opt_js.coerce_to_number()?.get_int64()? as usize)
+    };
+
+    let mut this: JsObject = ctx.this_unchecked();
+    let native_class = BufferListClass {
+        buffer_list: Mutex::new(BufferList::new(hwm)),
+        condvar: Condvar::new(),
+    };
+    ctx.env.wrap(&mut this, Arc::new(native_class))?;
+
+    ctx.env.get_undefined()
+}
+
+#[js_function(1)]
+pub fn buffer_list_class_push(ctx: CallContext) -> Result<JsBoolean> {
+    let buf_ref = ctx.get::<JsBuffer>(0)?.into_ref()?;
+    let this: JsObject = ctx.this_unchecked();
+    let native_class: &mut Arc<BufferListClass> = ctx.env.unwrap(&this)?;
+    let mut lock = native_class.buffer_list.lock();
+    let r = lock.push(RefJsBufferValue { inner: buf_ref });
+
+    native_class.condvar.notify_all();
+
+    ctx.env.get_boolean(r)
+}
+
 #[module_exports]
-fn init(mut exports: JsObject) -> Result<()> {
+fn init(mut exports: JsObject, env: Env) -> Result<()> {
     libvips_rs::init();
     //libvips_rs::leak_set(true);
     libvips_rs::cache_set_max_mem(0);
@@ -86,6 +147,14 @@ fn init(mut exports: JsObject) -> Result<()> {
     exports.create_named_method("shutdown", shutdown)?;
     exports.create_named_method("getMemStats", get_mem_stats)?;
     exports.create_named_method("freeMemory", free_memory)?;
+
+    let buffer_list_class = env.define_class(
+        "BufferList",
+        buffer_list_class_ctor,
+        &[Property::new(&env, "push")?.with_method(buffer_list_class_push)],
+    )?;
+
+    exports.set_named_property("BufferList", buffer_list_class)?;
 
     Ok(())
 }

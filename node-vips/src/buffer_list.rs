@@ -1,6 +1,6 @@
 use std::{cmp::Ordering, ops::Deref};
 
-pub struct BufferList<T: Deref<Target = [u8]> + AsRef<[u8]>> {
+pub struct BufferList<T> {
     buf_list: Vec<T>,
     garbage_list: Vec<T>,
     pos_from_head: usize,
@@ -19,7 +19,7 @@ impl<T: Deref<Target = [u8]> + AsRef<[u8]>> BufferList<T> {
             garbage_list: Vec::new(),
             pos_from_head: 0,
             total_len: 0,
-            high_water_mark: hwm.unwrap_or(40 * 1024),
+            high_water_mark: hwm.unwrap_or(128 * 1024),
         }
     }
 
