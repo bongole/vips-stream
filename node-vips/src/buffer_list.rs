@@ -1,15 +1,15 @@
 use std::{cmp::Ordering, ops::Deref};
 
 pub struct BufferList<T: Deref<Target = [u8]> + AsRef<[u8]>> {
-    pub(crate) buf_list: Vec<T>,
-    pub(crate) garbage_list: Vec<T>,
-    pub(crate) pos_from_head: usize,
-    pub(crate) total_len: usize,
-    pub(crate) high_water_mark: usize,
+    buf_list: Vec<T>,
+    garbage_list: Vec<T>,
+    pos_from_head: usize,
+    total_len: usize,
+    high_water_mark: usize,
 }
 #[derive(Debug, Clone)]
 pub enum ReadError {
-    NeedRetry,
+    NeedMoreChunk,
 }
 
 impl<T: Deref<Target = [u8]> + AsRef<[u8]>> BufferList<T> {
@@ -45,9 +45,9 @@ impl<T: Deref<Target = [u8]> + AsRef<[u8]>> BufferList<T> {
         }
     }
 
-    pub fn push(&mut self, buf: T) -> bool {
-        self.total_len += buf.len();
-        self.buf_list.push(buf);
+    pub fn push(&mut self, chunk: T) -> bool {
+        self.total_len += chunk.len();
+        self.buf_list.push(chunk);
 
         self.total_len < self.high_water_mark
     }
@@ -100,7 +100,7 @@ impl<T: Deref<Target = [u8]> + AsRef<[u8]>> BufferList<T> {
                 self.total_len -= read_buf_len;
                 Ok(read_buf_len)
             }
-            Ordering::Greater => Err(ReadError::NeedRetry),
+            Ordering::Greater => Err(ReadError::NeedMoreChunk),
         }
     }
 }
@@ -252,5 +252,4 @@ mod tests {
         assert_eq!(1, gc_count);
         assert_eq!(3, bl.len());
     }
-
 }

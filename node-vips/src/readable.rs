@@ -1,10 +1,14 @@
 #![deny(clippy::all)]
 
-use std::sync::Arc;
 use parking_lot::Mutex;
+use std::sync::Arc;
 
 use libvips_rs::VipsImage;
-use napi::{CallContext, JsBuffer, JsBufferValue, JsFunction, JsNumber, JsObject, JsUndefined, JsUnknown, Ref, Result, ValueType, threadsafe_function::{ThreadSafeCallContext, ThreadsafeFunctionCallMode}};
+use napi::{
+    threadsafe_function::{ThreadSafeCallContext, ThreadsafeFunctionCallMode},
+    CallContext, JsBuffer, JsBufferValue, JsFunction, JsNumber, JsObject, JsUndefined, JsUnknown,
+    Ref, Result, ValueType,
+};
 
 #[js_function(3)]
 pub fn create_vips_image(ctx: CallContext) -> Result<JsUndefined> {
@@ -106,13 +110,12 @@ pub fn vips_image_thumbnail(ctx: CallContext) -> Result<JsUndefined> {
 pub fn vips_image_resize(ctx: CallContext) -> Result<JsUndefined> {
     let vips_image_obj = ctx.get::<JsObject>(0)?;
     let vips_image = ctx.env.unwrap::<Arc<Mutex<VipsImage>>>(&vips_image_obj)?;
-    let vscale= ctx.get::<JsNumber>(1)?.get_double()?;
+    let vscale = ctx.get::<JsNumber>(1)?.get_double()?;
 
     vips_image.lock().resize(vscale);
 
     ctx.env.get_undefined()
 }
-
 
 #[js_function(2)]
 pub fn register_read_buf(ctx: CallContext) -> Result<JsUndefined> {
@@ -132,4 +135,3 @@ pub fn register_read_buf(ctx: CallContext) -> Result<JsUndefined> {
 
     ctx.env.get_undefined()
 }
-

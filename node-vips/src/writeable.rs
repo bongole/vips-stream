@@ -1,7 +1,7 @@
 #![deny(clippy::all)]
 
-use std::sync::Arc;
 use parking_lot::Mutex;
+use std::sync::Arc;
 
 use libvips_rs::VipsImage;
 use napi::{

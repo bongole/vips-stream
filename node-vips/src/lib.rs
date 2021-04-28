@@ -3,19 +3,19 @@
 #[macro_use]
 extern crate napi_derive;
 
+mod bench;
+mod buffer_list;
 mod readable;
 mod writeable;
-mod buffer_list;
-mod bench;
 
-use std::os::raw::c_int;
 use parking_lot::Mutex;
+use std::os::raw::c_int;
 
 use napi::{CallContext, JsBoolean, JsObject, JsUndefined, Result};
 use once_cell::sync::OnceCell;
 use threadpool::ThreadPool;
 
-const THREAD_POOL_SIZE:usize = 10;
+const THREAD_POOL_SIZE: usize = 10;
 static THREAD_POOL: OnceCell<Mutex<ThreadPool>> = OnceCell::new();
 
 #[js_function(0)]
@@ -30,14 +30,17 @@ pub fn get_mem_stats(ctx: CallContext) -> Result<JsObject> {
 
     let tracked_mem = libvips_rs::tracked_get_mem();
     let tracked_mem_highwater = libvips_rs::tracked_get_mem_highwater();
-    let cache_max_mem= libvips_rs::cache_get_max_mem();
+    let cache_max_mem = libvips_rs::cache_get_max_mem();
 
     obj.set_named_property("mem_current", ctx.env.create_int64(tracked_mem as _)?)?;
-    obj.set_named_property("mem_high", ctx.env.create_int64(tracked_mem_highwater as _)?)?;
+    obj.set_named_property(
+        "mem_high",
+        ctx.env.create_int64(tracked_mem_highwater as _)?,
+    )?;
     obj.set_named_property("mem_max", ctx.env.create_int64(cache_max_mem as _)?)?;
 
-    let cache_size= libvips_rs::cache_get_size();
-    let cache_max= libvips_rs::cache_get_max();
+    let cache_size = libvips_rs::cache_get_size();
+    let cache_max = libvips_rs::cache_get_max();
 
     obj.set_named_property("cache_current", ctx.env.create_int32(cache_size)?)?;
     obj.set_named_property("cache_max", ctx.env.create_int32(cache_max)?)?;
@@ -46,13 +49,13 @@ pub fn get_mem_stats(ctx: CallContext) -> Result<JsObject> {
 }
 
 extern "C" {
-    #[link(name="c")]
+    #[link(name = "c")]
     fn malloc_trim(__pad: usize) -> c_int;
 }
 
 #[js_function(0)]
 pub fn free_memory(ctx: CallContext) -> Result<JsBoolean> {
-    let r = unsafe{ malloc_trim(0) };
+    let r = unsafe { malloc_trim(0) };
     ctx.env.get_boolean(r == 1)
 }
 
