@@ -1,6 +1,7 @@
 #![deny(clippy::all)]
 
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use parking_lot::Mutex;
 
 use libvips_rs::VipsImage;
 use napi::{CallContext, JsBuffer, JsBufferValue, JsFunction, JsNumber, JsObject, JsUndefined, JsUnknown, Ref, Result, ValueType, threadsafe_function::{ThreadSafeCallContext, ThreadsafeFunctionCallMode}};
@@ -53,7 +54,7 @@ pub fn create_vips_image(ctx: CallContext) -> Result<JsUndefined> {
         |ctx: ThreadSafeCallContext<()>| Ok(vec![ctx.env.get_undefined().unwrap()]),
     )?;
 
-    let pool = crate::THREAD_POOL.get().unwrap().lock().unwrap();
+    let pool = crate::THREAD_POOL.get().unwrap().lock();
     let (tx, rx) = flume::unbounded::<Option<Ref<JsBufferValue>>>();
 
     pool.execute(move || {
@@ -96,7 +97,7 @@ pub fn vips_image_thumbnail(ctx: CallContext) -> Result<JsUndefined> {
     let vips_image = ctx.env.unwrap::<Arc<Mutex<VipsImage>>>(&vips_image_obj)?;
     let width = ctx.get::<JsNumber>(1)?.get_int32()?;
 
-    vips_image.lock().unwrap().thumbnail(width);
+    vips_image.lock().thumbnail(width);
 
     ctx.env.get_undefined()
 }
@@ -107,7 +108,7 @@ pub fn vips_image_resize(ctx: CallContext) -> Result<JsUndefined> {
     let vips_image = ctx.env.unwrap::<Arc<Mutex<VipsImage>>>(&vips_image_obj)?;
     let vscale= ctx.get::<JsNumber>(1)?.get_double()?;
 
-    vips_image.lock().unwrap().resize(vscale);
+    vips_image.lock().resize(vscale);
 
     ctx.env.get_undefined()
 }

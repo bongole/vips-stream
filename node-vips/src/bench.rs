@@ -31,7 +31,7 @@ pub fn call_test(ctx: CallContext) -> Result<JsUndefined> {
         |ctx: ThreadSafeCallContext<u64>| Ok(vec![ctx.env.get_undefined().unwrap()]),
     )?;
 
-    let pool = crate::THREAD_POOL.get().unwrap().lock().unwrap();
+    let pool = crate::THREAD_POOL.get().unwrap().lock();
     let (tx, rx) = flume::unbounded::<u64>();
 
     pool.execute(move || loop {
@@ -86,7 +86,7 @@ pub fn read_buf_test(ctx: CallContext) -> Result<JsUndefined> {
         },
     )?;
 
-    let pool = crate::THREAD_POOL.get().unwrap().lock().unwrap();
+    let pool = crate::THREAD_POOL.get().unwrap().lock();
     let (tx, rx) = flume::unbounded::<Option<Ref<JsBufferValue>>>();
 
     pool.execute(move || loop {

@@ -134,6 +134,19 @@ mod tests {
     }
 
     #[test]
+    fn test_read_empty() {
+        let mut bl: BufferList<Vec<u8>> = BufferList::new(None);
+
+        let mut a1 = [0_u8; 3];
+        let r = bl.read(&mut a1);
+        assert_eq!(true, r.is_err());
+
+        let mut a2 = [0u8; 0];
+        let r = bl.read(&mut a2).unwrap();
+        assert_eq!(0, r);
+    }
+
+    #[test]
     fn test_read_eq() {
         let mut bl = BufferList::new(None);
 

@@ -8,7 +8,8 @@ mod writeable;
 mod buffer_list;
 mod bench;
 
-use std::{os::raw::c_int, sync::Mutex};
+use std::os::raw::c_int;
+use parking_lot::Mutex;
 
 use napi::{CallContext, JsBoolean, JsObject, JsUndefined, Result};
 use once_cell::sync::OnceCell;

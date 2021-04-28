@@ -1,6 +1,7 @@
 #![deny(clippy::all)]
 
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use parking_lot::Mutex;
 
 use libvips_rs::VipsImage;
 use napi::{
@@ -62,12 +63,12 @@ pub fn write_vips_image(ctx: CallContext) -> Result<JsUndefined> {
         |ctx: ThreadSafeCallContext<()>| Ok(vec![ctx.env.get_undefined().unwrap()]),
     )?;
 
-    let pool = crate::THREAD_POOL.get().unwrap().lock().unwrap();
+    let pool = crate::THREAD_POOL.get().unwrap().lock();
     let (tx, rx) = flume::unbounded::<Option<i64>>();
 
     let vips_image = vips_image.clone();
     pool.execute(move || {
-        let vips_image = vips_image.lock().unwrap();
+        let vips_image = vips_image.lock();
 
         let mut target_custom = libvips_rs::new_target_custom();
         target_custom.set_on_write(move |write_buf| {
