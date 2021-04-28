@@ -22,10 +22,12 @@ class Vips {
                     return
                 }
 
-                let buf = await new Promise((res) => read_stream.once('readable', () => {
-                    const b = read_stream.read(read_size)
-                    res(b)
-                }))
+                let buf = read_stream.read(read_size)
+                if (buf === null) {
+                    buf = await new Promise((res) => read_stream.once('readable', () => {
+                        res(read_stream.read(read_size))
+                    }))
+                }
 
                 addon.registerReadBuf(ctx, buf)
             })
@@ -90,7 +92,7 @@ class Vips {
 }
 
 setInterval(() => {
-    addon.freeMemory()
+    //addon.freeMemory()
     //console.log('free memory')
 }, 10_000);
 
@@ -102,10 +104,11 @@ function format(n) {
 
 app.get('/stream', async (req, res) => {
     let myid = ++id;
-    const read_stream = fs.createReadStream("/home/bongole/image/4k.jpg");
+    const read_stream = fs.createReadStream("/home/bongole/image/4k.jpg", { highWaterMark: 40 * 1024 });
     const vips = await Vips.create(read_stream);
     //console.log('start ' + format(myid))
-    let r = await vips.resize(0.109).write(res, ".jpg", format(myid));
+    //let r = await vips.resize(0.109).write(res, ".jpg", format(myid));
+    let r = await vips.write(res, ".jpg", format(myid));
     //console.log('end ' + format(myid) + ' ' + r)
     res.end();
 });

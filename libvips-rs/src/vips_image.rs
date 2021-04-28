@@ -1,4 +1,9 @@
-use std::{ffi::{c_void, CString}, mem::transmute, os::raw::c_char, ptr::null_mut};
+use std::{
+    ffi::{c_void, CString},
+    mem::transmute,
+    os::raw::c_char,
+    ptr::null_mut,
+};
 
 use crate::vips_source_custom::*;
 use crate::vips_target_custom::*;
@@ -70,6 +75,30 @@ impl VipsImage {
     }
 }
 
+pub fn thumbnail_from_source(source: VipsSourceCustom, width: i32) -> VipsImage {
+    let mut vi = VipsImage {
+        vips_image: null_mut(),
+        vips_source: source,
+    };
+
+    unsafe {
+        let out_ptr = null_mut::<libvips_sys::VipsImage>();
+        libvips_sys::vips_thumbnail_source(
+            libvips_sys::g_type_cast(
+                vi.vips_source.vips_source_custom,
+                libvips_sys::vips_source_get_type(),
+            ),
+            transmute(&out_ptr),
+            width,
+            null_mut::<*const c_void>(),
+        );
+
+        vi.vips_image = out_ptr;
+    }
+
+    vi
+}
+
 pub fn new_image_from_source(source: VipsSourceCustom) -> VipsImage {
     let mut vi = VipsImage {
         vips_image: null_mut(),
@@ -77,7 +106,6 @@ pub fn new_image_from_source(source: VipsSourceCustom) -> VipsImage {
     };
 
     unsafe {
-
         let vips_image_ptr = libvips_sys::vips_image_new_from_source(
             libvips_sys::g_type_cast(
                 vi.vips_source.vips_source_custom,
@@ -86,6 +114,8 @@ pub fn new_image_from_source(source: VipsSourceCustom) -> VipsImage {
             "\0".as_ptr() as *const c_char,
             "access\0".as_ptr() as *const c_char,
             libvips_sys::VipsAccess::VIPS_ACCESS_SEQUENTIAL,
+            "shrink\0".as_ptr() as *const c_char,
+            8,
             null_mut::<*const c_void>(),
         );
 
