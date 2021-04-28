@@ -7,33 +7,33 @@ function sleep(t) {
 }
 
 class Vips {
-    constructor(vips, read_stream) {
+    constructor(vips){
         this._vips = vips;
-        this._read_stream = read_stream;
     }
 
     static async create(read_stream) {
         const vips = await new Promise((res, rej) => {
-            const res_wrap = (_err, v) => res(v);
+            const res_wrap = (_err, vips) => res(vips);
+            const bufferList = new addon.BufferList(5 * read_stream.readableHighWaterMark);
 
-            addon.createVipsImage(res_wrap, rej, async (err, ctx, read_size) => {
-                if (read_stream.readableEnded) {
-                    addon.registerReadBuf(ctx, null)
-                    return
-                }
+            addon.createVipsImage(res_wrap, rej, bufferList, () => {
+                read_stream.on('close', () => {
+                    bufferList.close()
+                })
 
-                let buf = read_stream.read(read_size)
-                if (buf === null) {
-                    buf = await new Promise((res) => read_stream.once('readable', () => {
-                        res(read_stream.read(read_size))
-                    }))
-                }
+                read_stream.on('error', () => {
+                    bufferList.close()
+                })
 
-                addon.registerReadBuf(ctx, buf)
-            })
+                read_stream.on('data', (buf) => {
+                    const r = bufferList.push(buf)
+                    if( !r )
+                        read_stream.pause()
+                })
+            }, () => read_stream.resume())
         })
 
-        return new Vips(vips, read_stream)
+        return new Vips(vips)
     }
 
     thumbnail(width) {
@@ -94,7 +94,8 @@ class Vips {
 setInterval(() => {
     //addon.freeMemory()
     //console.log('free memory')
-}, 10_000);
+    //global.gc()
+}, 1_000);
 
 const app = express();
 let id = 0;

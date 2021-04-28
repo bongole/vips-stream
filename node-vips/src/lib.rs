@@ -64,7 +64,7 @@ pub fn free_memory(ctx: CallContext) -> Result<JsBoolean> {
     ctx.env.get_boolean(r == 1)
 }
 
-struct RefJsBufferValue {
+pub(crate) struct RefJsBufferValue {
     pub(crate) inner: Ref<JsBufferValue>,
 }
 
@@ -120,6 +120,18 @@ pub fn buffer_list_class_push(ctx: CallContext) -> Result<JsBoolean> {
     ctx.env.get_boolean(r)
 }
 
+#[js_function(0)]
+pub fn buffer_list_class_close(ctx: CallContext) -> Result<JsUndefined> {
+    let this: JsObject = ctx.this_unchecked();
+    let native_class: &mut Arc<BufferListClass> = ctx.env.unwrap(&this)?;
+    let mut lock = native_class.buffer_list.lock();
+    lock.close();
+
+    native_class.condvar.notify_all();
+
+    ctx.env.get_undefined()
+}
+
 #[module_exports]
 fn init(mut exports: JsObject, env: Env) -> Result<()> {
     libvips_rs::init();
@@ -151,7 +163,10 @@ fn init(mut exports: JsObject, env: Env) -> Result<()> {
     let buffer_list_class = env.define_class(
         "BufferList",
         buffer_list_class_ctor,
-        &[Property::new(&env, "push")?.with_method(buffer_list_class_push)],
+        &[
+            Property::new(&env, "push")?.with_method(buffer_list_class_push),
+            Property::new(&env, "close")?.with_method(buffer_list_class_close),
+        ],
     )?;
 
     exports.set_named_property("BufferList", buffer_list_class)?;

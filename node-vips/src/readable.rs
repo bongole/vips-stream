@@ -10,11 +10,17 @@ use napi::{
     Ref, Result, ValueType,
 };
 
-#[js_function(3)]
+#[js_function(5)]
 pub fn create_vips_image(ctx: CallContext) -> Result<JsUndefined> {
     let resolve_func_js = ctx.get::<JsFunction>(0)?;
     let reject_func_js = ctx.get::<JsFunction>(1)?;
-    let read_func_js = ctx.get::<JsFunction>(2)?;
+    let buffer_list_js = ctx.get::<JsObject>(2)?;
+    let init_func_js = ctx.get::<JsFunction>(3)?;
+    let resume_func_js = ctx.get::<JsFunction>(4)?;
+
+    init_func_js.call_without_args(None).unwrap();
+
+    let buffer_list = ctx.env.unwrap::<Arc::<crate::BufferListClass>>(&buffer_list_js)?;
 
     let unref_func_js = ctx
         .env
@@ -29,18 +35,6 @@ pub fn create_vips_image(ctx: CallContext) -> Result<JsUndefined> {
         },
     )?;
 
-    let read_tsf = ctx.env.create_threadsafe_function(
-        &read_func_js,
-        0,
-        |ctx: ThreadSafeCallContext<(flume::Sender<Option<Ref<JsBufferValue>>>, i64)>| {
-            let mut tx_js = ctx.env.create_object()?;
-            ctx.env.wrap(&mut tx_js, ctx.value.0)?;
-            let read_size_js = ctx.env.create_int64(ctx.value.1)?;
-
-            Ok(vec![tx_js.into_unknown(), read_size_js.into_unknown()])
-        },
-    )?;
-
     let resolve_tsf = ctx.env.create_threadsafe_function(
         &resolve_func_js,
         0,
@@ -52,6 +46,15 @@ pub fn create_vips_image(ctx: CallContext) -> Result<JsUndefined> {
         },
     )?;
 
+    let resume_tsf = ctx.env.create_threadsafe_function(
+        &resume_func_js,
+        0,
+        |ctx: ThreadSafeCallContext<()>| {
+            Ok(vec![ctx.env.get_undefined().unwrap()])
+        },
+    )?;
+
+
     let _reject_tsf = ctx.env.create_threadsafe_function(
         &reject_func_js,
         0,
@@ -59,25 +62,30 @@ pub fn create_vips_image(ctx: CallContext) -> Result<JsUndefined> {
     )?;
 
     let pool = crate::THREAD_POOL.get().unwrap().lock();
-    let (tx, rx) = flume::unbounded::<Option<Ref<JsBufferValue>>>();
 
+    let buffer_list = buffer_list.clone();
     pool.execute(move || {
         let mut custom_src = libvips_rs::new_source_custom();
         custom_src.set_on_read(move |read_buf| {
-            read_tsf.call(
-                Ok((tx.clone(), read_buf.len() as i64)),
-                ThreadsafeFunctionCallMode::Blocking,
-            );
+            loop {
+                let mut lock = buffer_list.buffer_list.lock();
+                let condvar = &buffer_list.condvar;
+                match lock.read(read_buf) {
+                    Ok(r) => {
+                        lock.gc(|buf| {
+                            unref_tsf.call(Ok(buf.inner), ThreadsafeFunctionCallMode::Blocking);
+                        });
 
-            let r = rx.recv().unwrap();
-            match r {
-                Some(buf) => {
-                    let buf_len = buf.len();
-                    read_buf[..buf_len].copy_from_slice(buf.as_ref());
-                    unref_tsf.call(Ok(buf), ThreadsafeFunctionCallMode::Blocking);
-                    buf_len as i64
+                        break r as i64
+                    },
+                    Err(crate::buffer_list::ReadError::NeedMoreChunk) => {
+                        resume_tsf.call(Ok(()), ThreadsafeFunctionCallMode::Blocking);
+                        condvar.wait(&mut lock)
+                    },
+                    Err(crate::buffer_list::ReadError::Error) => {
+                        break -1
+                    }
                 }
-                None => 0,
             }
         });
 
