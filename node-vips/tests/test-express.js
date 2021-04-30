@@ -1,6 +1,6 @@
 const express = require('express');
 const fs = require('fs');
-const addon = require('./index.js')
+const addon = require('../index.js')
 
 function sleep(t) {
     new Promise((r) => setTimeout(r, t))
@@ -14,7 +14,7 @@ class Vips {
     static async create(read_stream) {
         const vips = await new Promise((res, rej) => {
             const res_wrap = (_err, vips) => res(vips);
-            const bufferList = new addon.BufferList(5 * read_stream.readableHighWaterMark);
+            const bufferList = new addon.BufferList(3 * read_stream.readableHighWaterMark);
 
             addon.createVipsImage(res_wrap, rej, bufferList, () => {
                 read_stream.on('close', () => {
@@ -105,6 +105,7 @@ function format(n) {
 
 app.get('/stream', async (req, res) => {
     let myid = ++id;
+    console.log('write highwatermark' + res.writableHighWaterMark)
     const read_stream = fs.createReadStream("/home/bongole/image/4k.jpg", { highWaterMark: 40 * 1024 });
     const vips = await Vips.create(read_stream);
     //console.log('start ' + format(myid))

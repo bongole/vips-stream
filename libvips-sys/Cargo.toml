@@ -10,5 +10,5 @@ links = "vips"
 [dependencies]
 
 [build-dependencies]
-bindgen = "0.57.0"
+bindgen = "0.58.1"
 pkg-config = "0.3.19"

@@ -6,7 +6,7 @@ extern crate napi_derive;
 mod bench;
 mod buffer_list;
 mod readable;
-mod writeable;
+mod writable;
 
 use buffer_list::BufferList;
 use std::{ops::Deref, os::raw::c_int};
