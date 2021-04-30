@@ -105,7 +105,7 @@ impl<T: Deref<Target = [u8]> + AsRef<[u8]>> BufferList<T> {
                 self.total_len -= read_buf_len;
                 Ok(read_buf_len)
             }
-            Ordering::Equal => {
+            Ordering::Equal | Ordering::Greater => {
                 let mut read_buf_pos = 0;
                 while !self.buf_list.is_empty() {
                     let b = self.buf_list.pop_front().unwrap();
@@ -116,23 +116,8 @@ impl<T: Deref<Target = [u8]> + AsRef<[u8]>> BufferList<T> {
                     self.garbage_list.push_back(b);
                 }
 
-                self.total_len -= read_buf_len;
-                Ok(read_buf_len)
-            }
-            Ordering::Greater => {
-                let mut read_buf_pos = 0;
-                while !self.buf_list.is_empty() {
-                    let b = self.buf_list.pop_front().unwrap();
-                    let b_ref = &b.as_ref()[self.pos_from_head..];
-                    read_buf[read_buf_pos..b_ref.len()].copy_from_slice(b_ref);
-                    self.pos_from_head = 0;
-                    read_buf_pos += b_ref.len();
-                    self.garbage_list.push_back(b);
-                }
-
-                let r = self.total_len;
-                self.total_len = 0;
-                Ok(r)
+                self.total_len -= read_buf_pos;
+                Ok(read_buf_pos)
             }
         }
     }
