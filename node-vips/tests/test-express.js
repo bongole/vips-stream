@@ -3,7 +3,7 @@ const fs = require('fs');
 const addon = require('../index.js')
 
 function sleep(t) {
-    new Promise((r) => setTimeout(r, t))
+    return new Promise((r) => setTimeout(r, t))
 }
 
 class Vips {
@@ -14,7 +14,7 @@ class Vips {
     static async create(read_stream) {
         const vips = await new Promise((res, rej) => {
             const res_wrap = (_err, vips) => res(vips);
-            const bufferList = new addon.BufferList(3 * read_stream.readableHighWaterMark);
+            const bufferList = new addon.BufferList(10 * read_stream.readableHighWaterMark);
 
             addon.createVipsImage(res_wrap, rej, bufferList, () => {
                 read_stream.on('close', () => {
@@ -63,8 +63,7 @@ class Vips {
             const res_wrap = (_err, v) => {
                 res(v);
             };
-
-            addon.writeVipsImage(this._vips, suffix, res_wrap, rej, async (err, ctx, buf, mystruct) => {
+            addon.writeVipsImage(this._vips, suffix, 20 * write_stream.writableHighWaterMark, res_wrap, rej, async (err, ctx, buf) => {
                 if (!write_stream.writable) {
                     addon.registerWriteSize(ctx, -1)
                     return
@@ -74,14 +73,11 @@ class Vips {
                 if (r) {
                     addon.registerWriteSize(ctx, buf.length)
                 } else {
-                    console.log('before drain ' + idx)
-                    let r = await Promise.race([new Promise((r) => write_stream.once('drain', () => r('drain'))), sleep(1000)])
-                    if (r === 'drain') {
-                        //write_stream.removeAllListeners();
-                        //console.log('after drain writable ' + idx)
+                    let r = await Promise.race([new Promise((r) => write_stream.once('drain', () => r(true))), sleep(5000)])
+                    if (r) {
                         addon.registerWriteSize(ctx, buf.length)
                     } else {
-                        console.log('after drain not writable ' + idx)
+                        console.log('after drain not writable ')
                         addon.registerWriteSize(ctx, -1)
                     }
                 }
@@ -92,10 +88,10 @@ class Vips {
 }
 
 setInterval(() => {
-    //addon.freeMemory()
+    addon.freeMemory()
     //console.log('free memory')
     //global.gc()
-}, 1_000);
+}, 10_000);
 
 const app = express();
 let id = 0;
@@ -105,8 +101,7 @@ function format(n) {
 
 app.get('/stream', async (req, res) => {
     let myid = ++id;
-    console.log('write highwatermark' + res.writableHighWaterMark)
-    const read_stream = fs.createReadStream("/home/bongole/image/4k.jpg", { highWaterMark: 40 * 1024 });
+    const read_stream = fs.createReadStream("/home/bongole/image/4k.jpg");
     const vips = await Vips.create(read_stream);
     //console.log('start ' + format(myid))
     //let r = await vips.resize(0.109).write(res, ".jpg", format(myid));

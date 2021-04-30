@@ -7,6 +7,7 @@ mod bench;
 mod buffer_list;
 mod readable;
 mod writable;
+mod flushable_buffer;
 
 use buffer_list::BufferList;
 use std::{ops::Deref, os::raw::c_int};

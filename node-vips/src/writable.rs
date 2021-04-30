@@ -9,6 +9,8 @@ use napi::{
     CallContext, JsFunction, JsNumber, JsObject, JsString, JsUndefined, Ref, Result,
 };
 
+use crate::flushable_buffer::FlushableBuffer;
+
 #[js_function(1)]
 pub fn drop_vips_image(ctx: CallContext) -> Result<JsUndefined> {
     let vips_image_obj = ctx.get::<JsObject>(0)?;
@@ -18,22 +20,23 @@ pub fn drop_vips_image(ctx: CallContext) -> Result<JsUndefined> {
     Ok(ctx.env.get_undefined().unwrap())
 }
 
-#[js_function(5)]
+#[js_function(6)]
 pub fn write_vips_image(ctx: CallContext) -> Result<JsUndefined> {
     let vips_image_obj = ctx.get::<JsObject>(0)?;
     let vips_image = ctx.env.unwrap::<Arc<Mutex<VipsImage>>>(&vips_image_obj)?;
     let vips_image_obj_ref = ctx.env.create_reference(vips_image_obj)?;
 
     let vips_write_suffix: String = ctx.get::<JsString>(1)?.into_utf8()?.as_str()?.to_string();
+    let high_water_mark: i64 = ctx.get::<JsNumber>(2)?.get_int64()?;
 
-    let resolve_func_js = ctx.get::<JsFunction>(2)?;
-    let reject_func_js = ctx.get::<JsFunction>(3)?;
+    let resolve_func_js = ctx.get::<JsFunction>(3)?;
+    let reject_func_js = ctx.get::<JsFunction>(4)?;
 
-    let write_func_js = ctx.get::<JsFunction>(4)?;
+    let write_func_js = ctx.get::<JsFunction>(5)?;
     let write_tsf = ctx.env.create_threadsafe_function(
         &write_func_js,
         0,
-        |ctx: ThreadSafeCallContext<(flume::Sender<Option<i64>>, &[u8])>| {
+        |ctx: ThreadSafeCallContext<(flume::Sender<Option<i64>>, Box<[u8]>)>| {
             let mut tx_js = ctx.env.create_object()?;
             ctx.env.wrap(&mut tx_js, ctx.value.0)?;
             let buffer_js = ctx.env.create_buffer_copy(ctx.value.1).unwrap().into_raw();
@@ -70,16 +73,39 @@ pub fn write_vips_image(ctx: CallContext) -> Result<JsUndefined> {
     pool.execute(move || {
         let vips_image = vips_image.lock();
 
+        let fb = Arc::new(Mutex::new(FlushableBuffer::new(Some(high_water_mark as usize))));
         let mut target_custom = libvips_rs::new_target_custom();
+
+        let fb_clone = fb.clone();
+        let write_tsf_clone = write_tsf.clone();
+        let tx_clone = tx.clone();
+        let rx_clone = rx.clone();
         target_custom.set_on_write(move |write_buf| {
-            unsafe {
+            let mut fb = fb_clone.lock();
+            if !fb.write(write_buf) {
+                fb.flush(|b| {
+                    write_tsf_clone.call(
+                        Ok((tx_clone.clone(), Box::from(b))),
+                        ThreadsafeFunctionCallMode::Blocking,
+                    );
+
+                    rx_clone.recv().unwrap().unwrap_or(0)
+                });
+            }
+            
+            write_buf.len() as i64
+        });
+
+        target_custom.set_on_finish(move || {
+            let mut fb = fb.lock();
+            fb.flush(|b| {
                 write_tsf.call(
-                    Ok((tx.clone(), std::mem::transmute(write_buf))), // expand write_buf lifetime to 'static
+                    Ok((tx.clone(), Box::from(b))),
                     ThreadsafeFunctionCallMode::Blocking,
                 );
-            }
 
-            rx.recv().unwrap().unwrap_or(0)
+                rx.recv().unwrap().unwrap_or(0)
+            });
         });
 
         let r = vips_image.write_to_target(&target_custom, vips_write_suffix.as_str());

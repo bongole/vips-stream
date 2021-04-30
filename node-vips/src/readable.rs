@@ -90,15 +90,12 @@ pub fn create_vips_image(ctx: CallContext) -> Result<JsUndefined> {
         });
 
         //let vi = libvips_rs::new_image_from_source(custom_src);
-        let vi = libvips_rs::thumbnail_from_source(custom_src, 300);
+        let vi = libvips_rs::thumbnail_from_source(custom_src, 1000);
         //let vi = libvips_rs::thumbnail_from_source(custom_src, 1000);
         resolve_tsf.call(
             Ok(Arc::new(Mutex::new(vi))),
             ThreadsafeFunctionCallMode::Blocking,
         );
-
-        libvips_rs::clear_error();
-        libvips_rs::thread_shutdown();
     });
 
     ctx.env.get_undefined()
