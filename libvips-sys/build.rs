@@ -13,8 +13,8 @@ fn main() {
             .bitfield_enum("*Flags?")
             .constified_enum_module("(VipsAccess|VipsCoding|VipsBandFormat|VipsInterpretation|VipsImageType)")
             .rustified_enum("*")
-            .whitelist_function("vips_.*")
-            .whitelist_function("g_(object|signal|value|type).*")
+            .allowlist_function("vips_.*")
+            .allowlist_function("g_(object|signal|value|type).*")
             .layout_tests(false)
             .generate_comments(false);
         

@@ -147,9 +147,9 @@ fn init(mut exports: JsObject, env: Env) -> Result<()> {
     exports.create_named_method("resize", readable::vips_image_resize)?;
     exports.create_named_method("registerReadBuf", readable::register_read_buf)?;
 
-    exports.create_named_method("writeVipsImage", writeable::write_vips_image)?;
-    exports.create_named_method("registerWriteSize", writeable::register_write_size)?;
-    exports.create_named_method("dropVipsImage", writeable::drop_vips_image)?;
+    exports.create_named_method("writeVipsImage", writable::write_vips_image)?;
+    exports.create_named_method("registerWriteSize", writable::register_write_size)?;
+    exports.create_named_method("dropVipsImage", writable::drop_vips_image)?;
 
     exports.create_named_method("callTest", bench::call_test)?;
     exports.create_named_method("registerCallTest", bench::register_call_test)?;
