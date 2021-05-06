@@ -35,18 +35,21 @@ pub fn write_vips_image(ctx: CallContext) -> Result<JsUndefined> {
     let write_func_js = ctx.get::<JsFunction>(5)?;
     let write_tsf = ctx.env.create_threadsafe_function(
         &write_func_js,
-        0,
-        |ctx: ThreadSafeCallContext<(flume::Sender<Option<i64>>, Box<[u8]>)>| {
-            let mut tx_js = ctx.env.create_object()?;
-            ctx.env.wrap(&mut tx_js, ctx.value.0)?;
-            let buffer_js = ctx.env.create_buffer_copy(ctx.value.1).unwrap().into_raw();
+        1,
+        |ctx: ThreadSafeCallContext<(Box<[u8]>, bool)>| {
+            let buffer_js = ctx.env.create_buffer_copy(ctx.value.0).unwrap().into_raw();
+            let end_js = ctx.env.get_boolean(ctx.value.1)?;
 
-            Ok(vec![tx_js.into_unknown(), buffer_js.into_unknown()])
+            Ok(vec![buffer_js.into_unknown(), end_js.into_unknown()])
         },
     )?;
 
-    let resolve_tsf = ctx.env.create_threadsafe_function(
-        &resolve_func_js,
+    let unref_func_js = ctx.env.create_function_from_closure("__unref", |ctx|{
+        ctx.env.get_undefined()
+    })?;
+
+    let unref_func_tsf = ctx.env.create_threadsafe_function(
+        &unref_func_js,
         0,
         |ctx: ThreadSafeCallContext<(Ref<()>, bool)>| {
             let vips_image_obj = ctx
@@ -67,7 +70,6 @@ pub fn write_vips_image(ctx: CallContext) -> Result<JsUndefined> {
     )?;
 
     let pool = crate::THREAD_POOL.get().unwrap().lock();
-    let (tx, rx) = flume::unbounded::<Option<i64>>();
 
     let vips_image = vips_image.clone();
     pool.execute(move || {
@@ -78,18 +80,14 @@ pub fn write_vips_image(ctx: CallContext) -> Result<JsUndefined> {
 
         let fb_clone = fb.clone();
         let write_tsf_clone = write_tsf.clone();
-        let tx_clone = tx.clone();
-        let rx_clone = rx.clone();
         target_custom.set_on_write(move |write_buf| {
             let mut fb = fb_clone.lock();
             if !fb.write(write_buf) {
                 fb.flush(|b| {
                     write_tsf_clone.call(
-                        Ok((tx_clone.clone(), Box::from(b))),
+                        Ok((Box::from(b), false)),
                         ThreadsafeFunctionCallMode::Blocking,
                     );
-
-                    rx_clone.recv().unwrap().unwrap_or(0)
                 });
             }
             
@@ -100,16 +98,14 @@ pub fn write_vips_image(ctx: CallContext) -> Result<JsUndefined> {
             let mut fb = fb.lock();
             fb.flush(|b| {
                 write_tsf.call(
-                    Ok((tx.clone(), Box::from(b))),
+                    Ok((Box::from(b), true)),
                     ThreadsafeFunctionCallMode::Blocking,
                 );
-
-                rx.recv().unwrap().unwrap_or(0)
             });
         });
 
         let r = vips_image.write_to_target(&target_custom, vips_write_suffix.as_str());
-        resolve_tsf.call(
+        unref_func_tsf.call(
             Ok((vips_image_obj_ref, r)),
             ThreadsafeFunctionCallMode::Blocking,
         );

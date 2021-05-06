@@ -20,16 +20,11 @@ impl FlushableBuffer {
         self.buffer.len()
     }
 
-    pub fn flush<F>(&mut self, mut f: F) -> i64
+    pub fn flush<F>(&mut self, mut f: F)
     where
-        F: FnMut(&[u8]) -> i64,
+        F: FnMut(&[u8]),
     {
-        let mut r = 0;
-        if !self.buffer.is_empty() {
-            r = f(&self.buffer[..]);
-            self.buffer.clear();
-        }
-
-        r
+        f(&self.buffer[..]);
+        self.buffer.clear();
     }
 }

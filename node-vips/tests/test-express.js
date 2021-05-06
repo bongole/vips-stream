@@ -14,7 +14,7 @@ class Vips {
     static async create(read_stream) {
         const vips = await new Promise((res, rej) => {
             const res_wrap = (_err, vips) => res(vips);
-            const bufferList = new addon.BufferList(10 * read_stream.readableHighWaterMark);
+            const bufferList = new addon.BufferList(20 * read_stream.readableHighWaterMark);
 
             addon.createVipsImage(res_wrap, rej, bufferList, () => {
                 read_stream.on('close', () => {
@@ -47,7 +47,8 @@ class Vips {
     }
 
     async write(write_stream, suffix = ".jpg", idx) {
-        write_stream.once('error', () => {
+        write_stream.once('error', (e) => {
+            console.log(e)
             console.log('write error ' + idx)
         })
 
@@ -63,24 +64,28 @@ class Vips {
             const res_wrap = (_err, v) => {
                 res(v);
             };
-            addon.writeVipsImage(this._vips, suffix, 20 * write_stream.writableHighWaterMark, res_wrap, rej, async (err, ctx, buf) => {
-                if (!write_stream.writable) {
-                    addon.registerWriteSize(ctx, -1)
-                    return
-                }
 
+            addon.writeVipsImage(this._vips, suffix, 20 * write_stream.writableHighWaterMark, res_wrap, rej, async (err, buf, end) => {
                 let r = write_stream.write(buf)
+                if( !r ){
+                    await new Promise((r) => write_stream.once('drain', () => r()))
+                }
+                if( end ){
+                    res(true)
+                }
+                /*
                 if (r) {
-                    addon.registerWriteSize(ctx, buf.length)
+                    //addon.registerWriteSize(ctx, buf.length)
                 } else {
                     let r = await Promise.race([new Promise((r) => write_stream.once('drain', () => r(true))), sleep(5000)])
                     if (r) {
-                        addon.registerWriteSize(ctx, buf.length)
+                        //addon.registerWriteSize(ctx, buf.length)
                     } else {
                         console.log('after drain not writable ')
-                        addon.registerWriteSize(ctx, -1)
+                        //addon.registerWriteSize(ctx, -1)
                     }
                 }
+                */
             });
         });
     }
