@@ -16,8 +16,8 @@ unsafe impl Send for VipsImage {}
 
 impl Drop for VipsImage {
     fn drop(&mut self) {
-        unsafe {
-            if !self.vips_image.is_null() {
+        if !self.vips_image.is_null() {
+            unsafe {
                 libvips_sys::g_object_unref(self.vips_image as libvips_sys::gpointer);
             }
         }
@@ -26,8 +26,9 @@ impl Drop for VipsImage {
 
 impl VipsImage {
     pub fn thumbnail(&mut self, width: i32) {
+        let out_ptr = null_mut::<libvips_sys::VipsImage>();
+
         unsafe {
-            let out_ptr = null_mut::<libvips_sys::VipsImage>();
             libvips_sys::vips_thumbnail_image(
                 self.vips_image,
                 transmute(&out_ptr),
@@ -36,14 +37,15 @@ impl VipsImage {
             );
 
             libvips_sys::g_object_unref(self.vips_image as libvips_sys::gpointer);
-
-            self.vips_image = out_ptr;
         }
+
+        self.vips_image = out_ptr;
     }
 
     pub fn resize(&mut self, vscale: f64) {
+        let out_ptr = null_mut::<libvips_sys::VipsImage>();
+
         unsafe {
-            let out_ptr = null_mut::<libvips_sys::VipsImage>();
             libvips_sys::vips_resize(
                 self.vips_image,
                 transmute(&out_ptr),
@@ -52,26 +54,26 @@ impl VipsImage {
             );
 
             libvips_sys::g_object_unref(self.vips_image as libvips_sys::gpointer);
-
-            self.vips_image = out_ptr;
         }
+
+        self.vips_image = out_ptr;
     }
 
     pub fn write_to_target(&self, target: &VipsTargetCustom, suffix: &str) -> bool {
-        unsafe {
-            let suffix_k = CString::new(suffix).unwrap();
-            let r = libvips_sys::vips_image_write_to_target(
+        let suffix_cstr = CString::new(suffix).unwrap();
+        let r = unsafe {
+            libvips_sys::vips_image_write_to_target(
                 self.vips_image,
-                suffix_k.as_ptr(),
+                suffix_cstr.as_ptr(),
                 libvips_sys::g_type_cast(
                     target.vips_target_custom,
                     libvips_sys::vips_target_get_type(),
                 ),
                 null_mut::<*const c_void>(),
-            );
+            )
+        };
 
-            r == 0
-        }
+        r == 0
     }
 }
 
@@ -81,8 +83,8 @@ pub fn thumbnail_from_source(source: VipsSourceCustom, width: i32) -> VipsImage 
         vips_source: source,
     };
 
+    let out_ptr = null_mut::<libvips_sys::VipsImage>();
     unsafe {
-        let out_ptr = null_mut::<libvips_sys::VipsImage>();
         libvips_sys::vips_thumbnail_source(
             libvips_sys::g_type_cast(
                 vi.vips_source.vips_source_custom,
@@ -92,35 +94,26 @@ pub fn thumbnail_from_source(source: VipsSourceCustom, width: i32) -> VipsImage 
             width,
             null_mut::<*const c_void>(),
         );
-
-        vi.vips_image = out_ptr;
     }
+    vi.vips_image = out_ptr;
 
     vi
 }
 
 pub fn new_image_from_source(source: VipsSourceCustom) -> VipsImage {
-    let mut vi = VipsImage {
-        vips_image: null_mut(),
+    VipsImage {
+        vips_image: unsafe {
+            libvips_sys::vips_image_new_from_source(
+                libvips_sys::g_type_cast(
+                    source.vips_source_custom,
+                    libvips_sys::vips_source_get_type(),
+                ),
+                "\0".as_ptr() as *const c_char,
+                "access\0".as_ptr() as *const c_char,
+                libvips_sys::VipsAccess::VIPS_ACCESS_SEQUENTIAL,
+                null_mut::<*const c_void>(),
+            )
+        },
         vips_source: source,
-    };
-
-    unsafe {
-        let vips_image_ptr = libvips_sys::vips_image_new_from_source(
-            libvips_sys::g_type_cast(
-                vi.vips_source.vips_source_custom,
-                libvips_sys::vips_source_get_type(),
-            ),
-            "\0".as_ptr() as *const c_char,
-            "access\0".as_ptr() as *const c_char,
-            libvips_sys::VipsAccess::VIPS_ACCESS_SEQUENTIAL,
-            "shrink\0".as_ptr() as *const c_char,
-            8,
-            null_mut::<*const c_void>(),
-        );
-
-        vi.vips_image = vips_image_ptr;
     }
-
-    vi
 }
