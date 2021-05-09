@@ -1,20 +1,12 @@
-use std::{ffi::c_void, mem::transmute, os::raw::c_char, ptr::slice_from_raw_parts};
+use std::{ffi::c_void, mem::transmute, os::raw::c_char, pin::Pin, ptr::slice_from_raw_parts};
 
-pub type OnWriteHandler = dyn FnMut(&[u8]) -> i64 + Send + 'static;
-pub type OnFinishHandler = dyn FnMut() + Send + 'static;
-
-pub(crate) struct OnFinishClosureWrapper {
-    pub(crate) closure: Option<Box<OnFinishHandler>>,
-}
-
-pub(crate) struct OnWriteClosureWrapper {
-    pub(crate) closure: Box<OnWriteHandler>,
-}
+pub type OnWriteHandler = dyn FnMut(&[u8]) -> i64;
+pub type OnFinishHandler = dyn FnMut();
 
 pub struct VipsTargetCustom {
     pub(crate) vips_target_custom: *mut libvips_sys::VipsTargetCustom,
-    pub(crate) write_handler: Option<(u64, *mut OnWriteClosureWrapper)>,
-    pub(crate) finish_handler: Option<(u64, *mut OnFinishClosureWrapper)>,
+    pub(crate) write_handler: Option<(u64, Pin<Box<Box<OnWriteHandler>>>)>,
+    pub(crate) finish_handler: Option<(u64, Pin<Box<Option<Box<OnFinishHandler>>>>)>,
 }
 
 unsafe impl Send for VipsTargetCustom {}
@@ -24,17 +16,15 @@ impl Drop for VipsTargetCustom {
         if !self.vips_target_custom.is_null() {
             let target = self.vips_target_custom as libvips_sys::gpointer;
 
-            if let Some((handler_id, wrapper_ptr)) = self.write_handler {
+            if let Some((handler_id, _)) = self.write_handler {
                 unsafe {
                     libvips_sys::g_signal_handler_disconnect(target, handler_id);
-                    let _ = Box::from_raw(wrapper_ptr as *mut OnWriteClosureWrapper);
                 }
             }
 
-            if let Some((handler_id, wrapper_ptr)) = self.finish_handler {
+            if let Some((handler_id, _)) = self.finish_handler {
                 unsafe {
                     libvips_sys::g_signal_handler_disconnect(target, handler_id);
-                    let _ = Box::from_raw(wrapper_ptr as *mut OnFinishClosureWrapper);
                 }
             }
 
@@ -48,7 +38,7 @@ impl Drop for VipsTargetCustom {
 impl VipsTargetCustom {
     pub fn set_on_write<F>(&mut self, f: F)
     where
-        F: FnMut(&[u8]) -> i64 + Send + 'static,
+        F: FnMut(&[u8]) -> i64 + Send + 'static
     {
         extern "C" fn write_wrapper(
             _target: *mut libvips_sys::VipsTargetCustom,
@@ -56,25 +46,23 @@ impl VipsTargetCustom {
             buf_len: libvips_sys::gint64,
             data: *mut c_void,
         ) -> libvips_sys::gint64 {
-            let wrapper = data as *mut OnWriteClosureWrapper;
+            let cb = data as *mut Box<OnWriteHandler>;
             let buf = slice_from_raw_parts(buf as *const u8, buf_len as usize);
-            unsafe { ((*wrapper).closure)(buf.as_ref().unwrap()) }
+            unsafe { (*cb)(buf.as_ref().unwrap()) }
         }
 
-        let wrapper_ptr = Box::into_raw(Box::new(OnWriteClosureWrapper {
-            closure: Box::new(f),
-        }));
+        let mut cb: Pin<Box<Box<OnWriteHandler>>> = Box::pin(Box::new(f));
 
         let handler_id = unsafe {
             libvips_sys::g_signal_connect(
                 self.vips_target_custom as libvips_sys::gpointer,
                 "write\0".as_ptr() as *const c_char,
                 Some(transmute(write_wrapper as *const fn())),
-                wrapper_ptr as _,
+                &mut *cb as *mut _ as *mut c_void,
             )
         };
 
-        self.write_handler = Some((handler_id, wrapper_ptr));
+        self.write_handler = Some((handler_id, cb));
     }
 
     pub fn set_on_finish<F>(&mut self, f: F)
@@ -85,29 +73,27 @@ impl VipsTargetCustom {
             _target: *mut libvips_sys::VipsTargetCustom,
             data: *mut c_void,
         ) {
-            let wrapper = data as *mut OnFinishClosureWrapper;
+            let cb = data as *mut Option<Box<OnFinishHandler>>;
             unsafe {
-                if let Some(ref mut f) = (*wrapper).closure {
+                if let Some(ref mut f) = *cb {
                     f();
-                    (*wrapper).closure = None;
+                    *cb = None;
                 }
             }
         }
 
-        let wrapper_ptr = Box::into_raw(Box::new(OnFinishClosureWrapper {
-            closure: Some(Box::new(f)),
-        }));
+        let mut cb: Pin<Box<Option<Box<OnFinishHandler>>>> = Box::pin(Some(Box::new(f)));
 
         let handler_id = unsafe {
             libvips_sys::g_signal_connect(
                 self.vips_target_custom as libvips_sys::gpointer,
                 "finish\0".as_ptr() as *const c_char,
                 Some(transmute(finish_wrapper as *const fn())),
-                wrapper_ptr as _,
+                &mut *cb as *mut _ as *mut c_void,
             )
         };
 
-        self.finish_handler = Some((handler_id, wrapper_ptr));
+        self.finish_handler = Some((handler_id, cb));
     }
 
     pub fn is_finished(&self) -> bool {
