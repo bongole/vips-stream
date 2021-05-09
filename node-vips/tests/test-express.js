@@ -49,24 +49,26 @@ class Vips {
     }
 
     async write(write_stream, suffix = ".jpg") {
-        write_stream.once('error', (e) => {
-            console.log(e)
-        })
-
-        write_stream.once('finish', () => {
-            //console.log('write finish ' + idx)
-        })
-
-        write_stream.once('close', () => {
-            //console.log('write close ' + idx)
-        })
-
-        return await new Promise((res, rej) => {
+        return new Promise((res, rej) => {
             const rej_wrap = (_err, v) => {
                 rej(v);
             };
 
-            addon.writeVipsImage(this._vips, suffix, 10 * write_stream.writableHighWaterMark, rej_wrap, async (_err, buf, end) => {
+            const fb = new addon.FlushableBuffer(10 * write_stream.writableHighWaterMark)
+
+            write_stream.once('error', (e) => {
+                fb.close()
+            })
+
+            write_stream.once('finish', () => {
+                fb.close()
+            })
+
+            write_stream.once('close', () => {
+                fb.close()
+            })
+
+            addon.writeVipsImage(this._vips, suffix, fb, rej_wrap, async (_err, buf, end) => {
                 let r = write_stream.write(buf)
                 if (!r) {
                     await new Promise((r) => write_stream.once('drain', () => r()))

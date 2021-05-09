@@ -4,11 +4,12 @@
 extern crate napi_derive;
 
 mod buffer_list;
+mod flushable_buffer;
 mod readable;
 mod writable;
-mod flushable_buffer;
 
 use buffer_list::BufferList;
+use flushable_buffer::FlushableBuffer;
 use std::{ops::Deref, os::raw::c_int};
 
 use napi::{
@@ -132,6 +133,43 @@ pub fn buffer_list_class_close(ctx: CallContext) -> Result<JsUndefined> {
     ctx.env.get_undefined()
 }
 
+#[js_function(1)]
+pub fn flushable_buffer_class_ctor(ctx: CallContext) -> Result<JsUndefined> {
+    let hwm_opt_js = ctx.get::<JsUnknown>(0)?;
+    let hwm_opt_t = hwm_opt_js.get_type()?;
+    let hwm: Option<usize> = if hwm_opt_t == ValueType::Null || hwm_opt_t == ValueType::Undefined {
+        Some(128 * 1024) // default 128KiB
+    } else {
+        Some(hwm_opt_js.coerce_to_number()?.get_int64()? as usize)
+    };
+
+    let mut this: JsObject = ctx.this_unchecked();
+    let native_class = Arc::new(Mutex::new(FlushableBuffer::new(hwm)));
+
+    ctx.env.wrap(&mut this, native_class)?;
+
+    ctx.env.get_undefined()
+}
+
+#[js_function(0)]
+pub fn flushable_buffer_class_close(ctx: CallContext) -> Result<JsUndefined> {
+    let this: JsObject = ctx.this_unchecked();
+    let native_class: &mut Arc<Mutex<FlushableBuffer>> = ctx.env.unwrap(&this)?;
+    let mut lock = native_class.lock();
+    lock.close();
+
+    ctx.env.get_undefined()
+}
+
+#[js_function(0)]
+pub fn flushable_buffer_class_is_closed(ctx: CallContext) -> Result<JsBoolean> {
+    let this: JsObject = ctx.this_unchecked();
+    let native_class: &mut Arc<Mutex<FlushableBuffer>> = ctx.env.unwrap(&this)?;
+    let lock = native_class.lock();
+
+    ctx.env.get_boolean(lock.is_closed())
+}
+
 #[module_exports]
 fn init(mut exports: JsObject, env: Env) -> Result<()> {
     libvips_rs::init();
@@ -162,6 +200,17 @@ fn init(mut exports: JsObject, env: Env) -> Result<()> {
     )?;
 
     exports.set_named_property("BufferList", buffer_list_class)?;
+
+    let flushable_buffer_class = env.define_class(
+        "FlushableBuffer",
+        flushable_buffer_class_ctor,
+        &[
+            Property::new(&env, "close")?.with_method(flushable_buffer_class_close),
+            Property::new(&env, "is_closed")?.with_method(flushable_buffer_class_is_closed),
+        ],
+    )?;
+
+    exports.set_named_property("FlushableBuffer", flushable_buffer_class)?;
 
     Ok(())
 }
