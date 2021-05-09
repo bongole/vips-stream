@@ -3,7 +3,6 @@
 #[macro_use]
 extern crate napi_derive;
 
-mod bench;
 mod buffer_list;
 mod readable;
 mod writable;
@@ -146,16 +145,8 @@ fn init(mut exports: JsObject, env: Env) -> Result<()> {
     exports.create_named_method("createVipsImage", readable::create_vips_image)?;
     exports.create_named_method("thumbnail", readable::vips_image_thumbnail)?;
     exports.create_named_method("resize", readable::vips_image_resize)?;
-    exports.create_named_method("registerReadBuf", readable::register_read_buf)?;
 
     exports.create_named_method("writeVipsImage", writable::write_vips_image)?;
-    exports.create_named_method("registerWriteSize", writable::register_write_size)?;
-    exports.create_named_method("dropVipsImage", writable::drop_vips_image)?;
-
-    exports.create_named_method("callTest", bench::call_test)?;
-    exports.create_named_method("registerCallTest", bench::register_call_test)?;
-    exports.create_named_method("readBufTest", bench::read_buf_test)?;
-    exports.create_named_method("registerReadBufTest", bench::register_read_buf_test)?;
 
     exports.create_named_method("shutdown", shutdown)?;
     exports.create_named_method("getMemStats", get_mem_stats)?;

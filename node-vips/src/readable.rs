@@ -6,8 +6,7 @@ use std::sync::Arc;
 use libvips_rs::VipsImage;
 use napi::{
     threadsafe_function::{ThreadSafeCallContext, ThreadsafeFunctionCallMode},
-    CallContext, JsBuffer, JsBufferValue, JsFunction, JsNumber, JsObject, JsUndefined, JsUnknown,
-    Ref, Result, ValueType,
+    CallContext, JsBufferValue, JsFunction, JsNumber, JsObject, JsUndefined, Ref, Result,
 };
 
 #[js_function(5)]
@@ -20,7 +19,9 @@ pub fn create_vips_image(ctx: CallContext) -> Result<JsUndefined> {
 
     init_func_js.call_without_args(None).unwrap();
 
-    let buffer_list = ctx.env.unwrap::<Arc::<crate::BufferListClass>>(&buffer_list_js)?;
+    let buffer_list = ctx
+        .env
+        .unwrap::<Arc<crate::BufferListClass>>(&buffer_list_js)?;
 
     let unref_func_js = ctx
         .env
@@ -49,11 +50,8 @@ pub fn create_vips_image(ctx: CallContext) -> Result<JsUndefined> {
     let resume_tsf = ctx.env.create_threadsafe_function(
         &resume_func_js,
         0,
-        |ctx: ThreadSafeCallContext<()>| {
-            Ok(vec![ctx.env.get_undefined().unwrap()])
-        },
+        |ctx: ThreadSafeCallContext<()>| Ok(vec![ctx.env.get_undefined().unwrap()]),
     )?;
-
 
     let _reject_tsf = ctx.env.create_threadsafe_function(
         &reject_func_js,
@@ -66,26 +64,22 @@ pub fn create_vips_image(ctx: CallContext) -> Result<JsUndefined> {
     let buffer_list = buffer_list.clone();
     pool.execute(move || {
         let mut custom_src = libvips_rs::new_source_custom();
-        custom_src.set_on_read(move |read_buf| {
-            loop {
-                let mut lock = buffer_list.buffer_list.lock();
-                let condvar = &buffer_list.condvar;
-                match lock.read(read_buf) {
-                    Ok(r) => {
-                        lock.gc(|buf| {
-                            unref_tsf.call(Ok(buf.inner), ThreadsafeFunctionCallMode::Blocking);
-                        });
+        custom_src.set_on_read(move |read_buf| loop {
+            let mut lock = buffer_list.buffer_list.lock();
+            let condvar = &buffer_list.condvar;
+            match lock.read(read_buf) {
+                Ok(r) => {
+                    lock.gc(|buf| {
+                        unref_tsf.call(Ok(buf.inner), ThreadsafeFunctionCallMode::Blocking);
+                    });
 
-                        break r as i64
-                    },
-                    Err(crate::buffer_list::ReadError::NeedMoreChunk) => {
-                        resume_tsf.call(Ok(()), ThreadsafeFunctionCallMode::Blocking);
-                        condvar.wait(&mut lock)
-                    },
-                    Err(crate::buffer_list::ReadError::Error) => {
-                        break -1
-                    }
+                    break r as i64;
                 }
+                Err(crate::buffer_list::ReadError::NeedMoreChunk) => {
+                    resume_tsf.call(Ok(()), ThreadsafeFunctionCallMode::Blocking);
+                    condvar.wait(&mut lock)
+                }
+                Err(crate::buffer_list::ReadError::Error) => break -1,
             }
         });
 
@@ -119,25 +113,6 @@ pub fn vips_image_resize(ctx: CallContext) -> Result<JsUndefined> {
     let vscale = ctx.get::<JsNumber>(1)?.get_double()?;
 
     vips_image.lock().resize(vscale);
-
-    ctx.env.get_undefined()
-}
-
-#[js_function(2)]
-pub fn register_read_buf(ctx: CallContext) -> Result<JsUndefined> {
-    let tx_js = ctx.get::<JsObject>(0)?;
-    let tx = ctx
-        .env
-        .unwrap::<flume::Sender<Option<Ref<JsBufferValue>>>>(&tx_js)?;
-    let js_unknown = ctx.get::<JsUnknown>(1)?;
-    let t = js_unknown.get_type()?;
-
-    if t == ValueType::Null || t == ValueType::Undefined {
-        tx.send(None).unwrap()
-    } else {
-        let js_buffer_ref = unsafe { js_unknown.cast::<JsBuffer>() }.into_ref()?;
-        tx.send(Some(js_buffer_ref)).unwrap()
-    }
 
     ctx.env.get_undefined()
 }

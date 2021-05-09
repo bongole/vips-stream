@@ -1,6 +1,7 @@
 pub struct FlushableBuffer {
     buffer: Vec<u8>,
     high_water_mark: usize,
+    closed: bool,
 }
 
 impl FlushableBuffer {
@@ -8,6 +9,7 @@ impl FlushableBuffer {
         Self {
             buffer: Vec::with_capacity(hwm.unwrap_or(16 * 1024)),
             high_water_mark: hwm.unwrap_or(16 * 1024),
+            closed: false,
         }
     }
 
@@ -18,6 +20,14 @@ impl FlushableBuffer {
 
     pub fn len(&self) -> usize {
         self.buffer.len()
+    }
+
+    pub fn close(&mut self) {
+        self.closed = true;
+    }
+
+    pub fn is_closed(&self) -> bool {
+        self.closed
     }
 
     pub fn flush<F>(&mut self, mut f: F)
