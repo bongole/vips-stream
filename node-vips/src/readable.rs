@@ -19,7 +19,7 @@ pub fn create_vips_image(ctx: CallContext) -> Result<JsUndefined> {
 
     init_func_js.call_without_args(None).unwrap();
 
-    let buffer_list = ctx
+    let buffer_list_class = ctx
         .env
         .unwrap::<Arc<crate::BufferListClass>>(&buffer_list_js)?;
 
@@ -61,12 +61,12 @@ pub fn create_vips_image(ctx: CallContext) -> Result<JsUndefined> {
 
     let pool = crate::THREAD_POOL.get().unwrap().lock();
 
-    let buffer_list = buffer_list.clone();
+    let buffer_list_class = buffer_list_class.clone();
     pool.execute(move || {
         let mut custom_src = libvips_rs::new_source_custom();
         custom_src.set_on_read(move |read_buf| loop {
-            let mut lock = buffer_list.buffer_list.lock();
-            let condvar = &buffer_list.condvar;
+            let mut lock = buffer_list_class.buffer_list.lock();
+            let condvar = &buffer_list_class.condvar;
             match lock.read(read_buf) {
                 Ok(r) => {
                     lock.gc(|buf| {

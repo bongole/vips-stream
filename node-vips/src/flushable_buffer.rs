@@ -14,7 +14,7 @@ impl FlushableBuffer {
     }
 
     pub fn write(&mut self, buf: &[u8]) -> bool {
-        self.buffer.extend_from_slice(buf);
+        self.buffer.extend(buf);
         self.buffer.len() < self.high_water_mark
     }
 

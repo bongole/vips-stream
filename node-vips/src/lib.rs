@@ -116,7 +116,7 @@ pub fn buffer_list_class_push(ctx: CallContext) -> Result<JsBoolean> {
     let mut lock = native_class.buffer_list.lock();
     let r = lock.push(RefJsBufferValue { inner: buf_ref });
 
-    native_class.condvar.notify_all();
+    native_class.condvar.notify_one();
 
     ctx.env.get_boolean(r)
 }
@@ -128,7 +128,7 @@ pub fn buffer_list_class_close(ctx: CallContext) -> Result<JsUndefined> {
     let mut lock = native_class.buffer_list.lock();
     lock.close();
 
-    native_class.condvar.notify_all();
+    native_class.condvar.notify_one();
 
     ctx.env.get_undefined()
 }
