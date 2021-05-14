@@ -59,7 +59,7 @@ pub fn create_vips_image(ctx: CallContext) -> Result<JsUndefined> {
         |ctx: ThreadSafeCallContext<()>| Ok(vec![ctx.env.get_undefined().unwrap()]),
     )?;
 
-    let pool = crate::THREAD_POOL.get().unwrap().lock();
+    let pool = crate::READ_THREAD_POOL.get().unwrap().lock();
 
     let buffer_list_class = buffer_list_class.clone();
     pool.execute(move || {
@@ -90,6 +90,8 @@ pub fn create_vips_image(ctx: CallContext) -> Result<JsUndefined> {
             Ok(Arc::new(Mutex::new(vi))),
             ThreadsafeFunctionCallMode::Blocking,
         );
+
+        libvips_rs::clear_error();
     });
 
     ctx.env.get_undefined()

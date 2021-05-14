@@ -13,6 +13,7 @@ impl FlushableBuffer {
         }
     }
 
+    #[inline]
     pub fn write(&mut self, buf: &[u8]) -> bool {
         self.buffer.extend(buf);
         self.buffer.len() < self.high_water_mark
@@ -26,10 +27,12 @@ impl FlushableBuffer {
         self.closed = true;
     }
 
+    #[inline]
     pub fn is_closed(&self) -> bool {
         self.closed
     }
 
+    #[inline]
     pub fn flush<F>(&mut self, mut f: F)
     where
         F: FnMut(&[u8]),

@@ -21,8 +21,10 @@ use parking_lot::{Condvar, Mutex};
 use std::sync::Arc;
 use threadpool::ThreadPool;
 
-const THREAD_POOL_SIZE: usize = 10;
-static THREAD_POOL: OnceCell<Mutex<ThreadPool>> = OnceCell::new();
+const READ_THREAD_POOL_SIZE: usize = 2;
+static READ_THREAD_POOL: OnceCell<Mutex<ThreadPool>> = OnceCell::new();
+const WRITE_THREAD_POOL_SIZE: usize = 8;
+static WRITE_THREAD_POOL: OnceCell<Mutex<ThreadPool>> = OnceCell::new();
 
 #[js_function(0)]
 pub fn shutdown(ctx: CallContext) -> Result<JsUndefined> {
@@ -177,8 +179,10 @@ fn init(mut exports: JsObject, env: Env) -> Result<()> {
     libvips_rs::cache_set_max_mem(0);
     libvips_rs::cache_set_max(0);
 
-    let thread_pool = Mutex::new(ThreadPool::new(THREAD_POOL_SIZE));
-    THREAD_POOL.set(thread_pool).unwrap();
+    let read_thread_pool = Mutex::new(ThreadPool::new(READ_THREAD_POOL_SIZE));
+    READ_THREAD_POOL.set(read_thread_pool).unwrap();
+    let write_thread_pool = Mutex::new(ThreadPool::new(WRITE_THREAD_POOL_SIZE));
+    WRITE_THREAD_POOL.set(write_thread_pool).unwrap();
 
     exports.create_named_method("createVipsImage", readable::create_vips_image)?;
     exports.create_named_method("thumbnail", readable::vips_image_thumbnail)?;

@@ -1,5 +1,6 @@
 const express = require('express');
 const fs = require('fs');
+const http = require('http');
 const addon = require('../index.js')
 
 function sleep(t) {
@@ -14,7 +15,7 @@ class Vips {
     static async create(read_stream) {
         const vips = await new Promise((res, rej) => {
             const res_wrap = (_err, vips) => res(vips);
-            const bufferList = new addon.BufferList(100 * read_stream.readableHighWaterMark);
+            const bufferList = new addon.BufferList(10 * read_stream.readableHighWaterMark);
 
             addon.createVipsImage(res_wrap, rej, bufferList, () => {
                 read_stream.on('close', () => {
@@ -27,8 +28,9 @@ class Vips {
 
                 read_stream.on('data', (buf) => {
                     const r = bufferList.push(buf)
-                    if (!r)
+                    if (!r) {
                         read_stream.pause()
+                    }
                 })
             }, () => {
                 read_stream.resume()
@@ -54,7 +56,7 @@ class Vips {
                 rej(v);
             };
 
-            const fb = new addon.FlushableBuffer(20 * write_stream.writableHighWaterMark)
+            const fb = new addon.FlushableBuffer(10 * write_stream.writableHighWaterMark)
 
             write_stream.once('error', (e) => {
                 fb.close()
@@ -71,15 +73,15 @@ class Vips {
             addon.writeVipsImage(this._vips, suffix, fb, rej_wrap, async (_err, buf, end) => {
                 const r = write_stream.write(buf)
                 if (end) {
-                    if( !r )
+                    if (!r)
                         await new Promise((r) => write_stream.once('drain', () => r()))
                     res(true)
                 }
-/*
-                if (end) {
-                    res(true)
-                }
-                */
+                /*
+                                if (end) {
+                                    res(true)
+                                }
+                                */
             });
         });
     }
@@ -97,6 +99,7 @@ setInterval(() => {
 const app = express();
 
 app.get('/stream', async (req, res) => {
+    //const read_stream = fs.createReadStream("/home/bongole/image/4k.jpg", { highWaterMark: 4 * 1024 * 1024 });
     const read_stream = fs.createReadStream("/home/bongole/image/4k.jpg");
     const vips = await Vips.create(read_stream);
     let r = await vips.write(res, ".jpg");

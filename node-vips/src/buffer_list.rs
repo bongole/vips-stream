@@ -34,6 +34,7 @@ impl<T: Deref<Target = [u8]> + AsRef<[u8]>> BufferList<T> {
         self.total_len
     }
 
+    #[inline]
     pub fn is_empty(&self) -> bool {
         let is_empty = self.buf_list.is_empty();
         if is_empty {
@@ -43,6 +44,7 @@ impl<T: Deref<Target = [u8]> + AsRef<[u8]>> BufferList<T> {
         is_empty
     }
 
+    #[inline]
     pub fn gc<F>(&mut self, mut f: F)
     where
         F: FnMut(T),
@@ -52,6 +54,7 @@ impl<T: Deref<Target = [u8]> + AsRef<[u8]>> BufferList<T> {
         }
     }
 
+    #[inline]
     pub fn push(&mut self, chunk: T) -> bool {
         if self.closed {
             return false;
@@ -63,6 +66,7 @@ impl<T: Deref<Target = [u8]> + AsRef<[u8]>> BufferList<T> {
         self.total_len < self.high_water_mark
     }
 
+    #[inline]
     pub fn read(&mut self, read_buf: &mut [u8]) -> Result<usize, ReadError> {
         if self.is_empty() && self.closed {
             return Err(ReadError::Error);

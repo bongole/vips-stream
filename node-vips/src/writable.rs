@@ -60,7 +60,7 @@ pub fn write_vips_image(ctx: CallContext) -> Result<JsUndefined> {
         |ctx: ThreadSafeCallContext<()>| Ok(vec![ctx.env.get_undefined().unwrap()]),
     )?;
 
-    let pool = crate::THREAD_POOL.get().unwrap().lock();
+    let pool = crate::WRITE_THREAD_POOL.get().unwrap().lock();
 
     let vips_image = vips_image.clone();
     let fb = flushable_buffer.clone();
