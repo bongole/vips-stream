@@ -26,7 +26,7 @@ pub fn write_vips_image(ctx: CallContext) -> Result<JsUndefined> {
     let write_func_js = ctx.get::<JsFunction>(4)?;
     let write_tsf = ctx.env.create_threadsafe_function(
         &write_func_js,
-        1,
+        0,
         |ctx: ThreadSafeCallContext<(Box<[u8]>, bool)>| {
             let buffer_js = ctx.env.create_buffer_copy(ctx.value.0).unwrap().into_raw();
             let end_js = ctx.env.get_boolean(ctx.value.1)?;

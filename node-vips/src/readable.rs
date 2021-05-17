@@ -69,7 +69,6 @@ pub fn create_vips_image(ctx: CallContext) -> Result<JsUndefined> {
         let mut custom_src = libvips_rs::new_source_custom();
         custom_src.set_on_read(move |read_buf| loop {
             let mut lock = buffer_list_class.buffer_list.lock();
-            let condvar = &buffer_list_class.condvar;
             match lock.read(read_buf) {
                 Ok(r) => {
                     lock.gc(|buf| {
@@ -80,7 +79,7 @@ pub fn create_vips_image(ctx: CallContext) -> Result<JsUndefined> {
                 }
                 Err(crate::buffer_list::ReadError::NeedMoreChunk) => {
                     resume_tsf.call(Ok(()), ThreadsafeFunctionCallMode::Blocking);
-                    condvar.wait(&mut lock)
+                    buffer_list_class.condvar.wait(&mut lock);
                 }
                 Err(crate::buffer_list::ReadError::Error) => break -1,
             }

@@ -15,7 +15,7 @@ class Vips {
     static async create(read_stream) {
         const vips = await new Promise((res, rej) => {
             const res_wrap = (_err, vips) => res(vips);
-            const bufferList = new addon.BufferList(10 * read_stream.readableHighWaterMark);
+            const bufferList = new addon.BufferList(500 * read_stream.readableHighWaterMark);
 
             addon.createVipsImage(res_wrap, rej, bufferList, () => {
                 read_stream.on('close', () => {
