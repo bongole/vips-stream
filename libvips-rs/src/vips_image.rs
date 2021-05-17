@@ -59,7 +59,7 @@ impl<'a> VipsImage<'a> {
         self.vips_image = out_ptr;
     }
 
-    pub fn write_to_target(&self, target: &VipsTargetCustom, suffix: &str) -> bool {
+    pub fn write_to_target(&self, target: &VipsTargetCustom, suffix: &str) -> Result<(), String> {
         let suffix_cstr = CString::new(suffix).unwrap();
         let r = unsafe {
             libvips_sys::vips_image_write_to_target(
@@ -73,11 +73,15 @@ impl<'a> VipsImage<'a> {
             )
         };
 
-        r == 0
+        if r == 0 {
+            Ok(())
+        } else {
+            Err(crate::error())
+        }
     }
 }
 
-pub fn thumbnail_from_source(source: VipsSourceCustom, width: i32) -> VipsImage {
+pub fn thumbnail_from_source(source: VipsSourceCustom, width: i32) -> Result<VipsImage, String> {
     let mut vi = VipsImage {
         vips_image: null_mut(),
         vips_source: source,
@@ -97,23 +101,33 @@ pub fn thumbnail_from_source(source: VipsSourceCustom, width: i32) -> VipsImage 
     }
     vi.vips_image = out_ptr;
 
-    vi
+    if vi.vips_image.is_null() {
+        Err(crate::error())
+    } else {
+        Ok(vi)
+    }
 }
 
-pub fn new_image_from_source(source: VipsSourceCustom) -> VipsImage {
-    VipsImage {
-        vips_image: unsafe {
-            libvips_sys::vips_image_new_from_source(
-                libvips_sys::g_type_cast(
-                    source.vips_source_custom,
-                    libvips_sys::vips_source_get_type(),
-                ),
-                "\0".as_ptr() as *const c_char,
-                "access\0".as_ptr() as *const c_char,
-                libvips_sys::VipsAccess::VIPS_ACCESS_SEQUENTIAL,
-                null_mut::<*const c_void>(),
-            )
-        },
-        vips_source: source,
+pub fn new_image_from_source(source: VipsSourceCustom) -> Result<VipsImage, String> {
+    let vips_image = unsafe {
+        libvips_sys::vips_image_new_from_source(
+            libvips_sys::g_type_cast(
+                source.vips_source_custom,
+                libvips_sys::vips_source_get_type(),
+            ),
+            "\0".as_ptr() as *const c_char,
+            "access\0".as_ptr() as *const c_char,
+            libvips_sys::VipsAccess::VIPS_ACCESS_SEQUENTIAL,
+            null_mut::<*const c_void>(),
+        )
+    };
+
+    if vips_image.is_null() {
+        Err(crate::error())
+    } else {
+        Ok(VipsImage {
+            vips_image,
+            vips_source: source,
+        })
     }
 }

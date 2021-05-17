@@ -57,7 +57,10 @@ pub fn write_vips_image(ctx: CallContext) -> Result<JsUndefined> {
     let reject_tsf = ctx.env.create_threadsafe_function(
         &reject_func_js,
         0,
-        |ctx: ThreadSafeCallContext<()>| Ok(vec![ctx.env.get_undefined().unwrap()]),
+        |ctx: ThreadSafeCallContext<String>| {
+            let err = ctx.env.create_string_from_std(ctx.value).unwrap();
+            Ok(vec![err])
+        }
     )?;
 
     let pool = crate::WRITE_THREAD_POOL.get().unwrap().lock();
@@ -103,8 +106,13 @@ pub fn write_vips_image(ctx: CallContext) -> Result<JsUndefined> {
 
         let r = vips_image.write_to_target(&target_custom, vips_write_suffix.as_str());
         unref_func_tsf.call(Ok(vips_image_obj_ref), ThreadsafeFunctionCallMode::Blocking);
-        if !r {
-            reject_tsf.call(Ok(()), ThreadsafeFunctionCallMode::Blocking);
+
+        match r {
+            Ok(_) => {
+            },
+            Err(err_str) => {
+                reject_tsf.call(Ok(err_str), ThreadsafeFunctionCallMode::Blocking);
+            }
         }
 
         libvips_rs::clear_error();

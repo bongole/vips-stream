@@ -53,10 +53,13 @@ pub fn create_vips_image(ctx: CallContext) -> Result<JsUndefined> {
         |ctx: ThreadSafeCallContext<()>| Ok(vec![ctx.env.get_undefined().unwrap()]),
     )?;
 
-    let _reject_tsf = ctx.env.create_threadsafe_function(
+    let reject_tsf = ctx.env.create_threadsafe_function(
         &reject_func_js,
         0,
-        |ctx: ThreadSafeCallContext<()>| Ok(vec![ctx.env.get_undefined().unwrap()]),
+        |ctx: ThreadSafeCallContext<String>| {
+            let err = ctx.env.create_string_from_std(ctx.value).unwrap();
+            Ok(vec![err])
+        },
     )?;
 
     let pool = crate::READ_THREAD_POOL.get().unwrap().lock();
@@ -84,12 +87,19 @@ pub fn create_vips_image(ctx: CallContext) -> Result<JsUndefined> {
         });
 
         //let vi = libvips_rs::new_image_from_source(custom_src);
-        let vi = libvips_rs::thumbnail_from_source(custom_src, 1000);
+        let r = libvips_rs::thumbnail_from_source(custom_src, 1000);
         //let vi = libvips_rs::thumbnail_from_source(custom_src, 1000);
-        resolve_tsf.call(
-            Ok(Arc::new(Mutex::new(vi))),
-            ThreadsafeFunctionCallMode::Blocking,
-        );
+        match r {
+            Ok(vi) => {
+                resolve_tsf.call(
+                    Ok(Arc::new(Mutex::new(vi))),
+                    ThreadsafeFunctionCallMode::Blocking,
+                );
+            },
+            Err(err_str) => {
+                reject_tsf.call(Ok(err_str), ThreadsafeFunctionCallMode::Blocking);
+            }
+        }
 
         libvips_rs::clear_error();
     });

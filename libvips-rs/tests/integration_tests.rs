@@ -53,7 +53,7 @@ mod integration_tests {
 
         src.set_on_read(move |buf| file.read(buf).unwrap() as i64);
 
-        let _vi = libvips_rs::new_image_from_source(src);
+        let _vi = libvips_rs::new_image_from_source(src).unwrap();
 
         assert!(0 < _vi.vips_source.read_position());
     }
@@ -73,12 +73,12 @@ mod integration_tests {
         let tmpfile_path = tmpfile.path().to_str().unwrap().to_string();
         target.set_on_write(move |buf| tmpfile.write(buf).unwrap() as i64);
 
-        let vi = libvips_rs::new_image_from_source(src);
+        let vi = libvips_rs::new_image_from_source(src).unwrap();
         let r = vi.write_to_target(&target, ".png");
 
         let tmpfile_metadata = metadata(tmpfile_path).unwrap();
 
-        assert!(r);
+        assert!(r.is_ok());
         assert!(target.is_finished());
         assert!(0 < tmpfile_metadata.size());
     }
@@ -98,13 +98,13 @@ mod integration_tests {
         let tmpfile_path = tmpfile.path().to_str().unwrap().to_string();
         target.set_on_write(move |buf| tmpfile.write(buf).unwrap() as i64);
 
-        let mut vi = libvips_rs::new_image_from_source(src);
+        let mut vi = libvips_rs::new_image_from_source(src).unwrap();
         vi.thumbnail(300);
         let r = vi.write_to_target(&target, ".png");
 
         let tmpfile_metadata = metadata(tmpfile_path).unwrap();
 
-        assert!(r);
+        assert!(r.is_ok());
         assert!(target.is_finished());
         assert!(0 < tmpfile_metadata.size());
     }
