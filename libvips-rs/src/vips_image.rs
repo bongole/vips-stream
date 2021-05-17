@@ -7,14 +7,14 @@ use std::{
 
 use crate::vips_source_custom::*;
 use crate::vips_target_custom::*;
-pub struct VipsImage {
-    pub vips_source: VipsSourceCustom,
+pub struct VipsImage<'a> {
+    pub vips_source: VipsSourceCustom<'a>,
     pub(crate) vips_image: *mut libvips_sys::VipsImage,
 }
 
-unsafe impl Send for VipsImage {}
+unsafe impl<'a> Send for VipsImage<'a> {}
 
-impl Drop for VipsImage {
+impl<'a> Drop for VipsImage<'a> {
     fn drop(&mut self) {
         if !self.vips_image.is_null() {
             unsafe {
@@ -24,7 +24,7 @@ impl Drop for VipsImage {
     }
 }
 
-impl VipsImage {
+impl<'a> VipsImage<'a> {
     pub fn thumbnail(&mut self, width: i32) {
         let out_ptr = null_mut::<libvips_sys::VipsImage>();
 
