@@ -88,13 +88,11 @@ class Vips {
 
 }
 
-/*
 setInterval(() => {
     addon.freeMemory()
     //console.log('free memory')
     //global.gc()
-}, 10_000);
-*/
+}, 5_000);
 
 const app = express();
 

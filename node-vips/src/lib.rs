@@ -175,9 +175,12 @@ pub fn flushable_buffer_class_is_closed(ctx: CallContext) -> Result<JsBoolean> {
 #[module_exports]
 fn init(mut exports: JsObject, env: Env) -> Result<()> {
     libvips_rs::init();
-    //libvips_rs::leak_set(true);
+    // libvips_rs::leak_set(true);
+    libvips_rs::set_concurrency(1);
     libvips_rs::cache_set_max_mem(0);
     libvips_rs::cache_set_max(0);
+    // libvips_rs::cache_set_max_mem(50 * 1024 * 1024);
+    // libvips_rs::cache_set_max(100);
 
     let read_thread_pool = Mutex::new(ThreadPool::new(READ_THREAD_POOL_SIZE));
     READ_THREAD_POOL.set(read_thread_pool).unwrap();
