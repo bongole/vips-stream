@@ -114,7 +114,7 @@ impl<T: Deref<Target = [u8]> + AsRef<[u8]>> BufferList<T> {
                 while !self.buf_list.is_empty() {
                     let b = self.buf_list.pop_front().unwrap();
                     let b_ref = &b.as_ref()[self.pos_from_head..];
-                    read_buf[read_buf_pos..b_ref.len()].copy_from_slice(b_ref);
+                    read_buf[read_buf_pos..(read_buf_pos+b_ref.len())].copy_from_slice(b_ref);
                     self.pos_from_head = 0;
                     read_buf_pos += b_ref.len();
                     self.garbage_list.push_back(b);

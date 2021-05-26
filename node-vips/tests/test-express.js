@@ -15,9 +15,10 @@ class Vips {
     static async create(read_stream) {
         const vips = await new Promise((res, rej) => {
             const res_wrap = (_err, vips) => res(vips);
+            const rej_wrap = (_err, e) => rej(e);
             const bufferList = new addon.BufferList(10 * read_stream.readableHighWaterMark);
 
-            addon.createVipsImage(res_wrap, rej, bufferList, () => {
+            addon.createVipsImage(res_wrap, rej_wrap, bufferList, () => {
                 read_stream.on('close', () => {
                     bufferList.close()
                 })
@@ -52,9 +53,7 @@ class Vips {
 
     async write(write_stream, suffix = ".jpg") {
         return new Promise((res, rej) => {
-            const rej_wrap = (_err, v) => {
-                rej(v);
-            };
+            const rej_wrap = (_err, e) => rej(e);
 
             const fb = new addon.FlushableBuffer(10 * write_stream.writableHighWaterMark)
 
@@ -75,13 +74,8 @@ class Vips {
                 if (end) {
                     if (!r)
                         await new Promise((r) => write_stream.once('drain', () => r()))
-                    res(true)
+                    res()
                 }
-                /*
-                                if (end) {
-                                    res(true)
-                                }
-                                */
             });
         });
     }
@@ -100,7 +94,7 @@ app.get('/stream', async (req, res) => {
     //const read_stream = fs.createReadStream("/home/bongole/image/4k.jpg", { highWaterMark: 4 * 1024 * 1024 });
     const read_stream = fs.createReadStream("/home/bongole/image/4k.jpg");
     const vips = await Vips.create(read_stream);
-    let r = await vips.write(res, ".jpg");
+    await vips.write(res, ".jpg");
     res.end();
 });
 
