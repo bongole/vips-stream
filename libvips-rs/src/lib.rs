@@ -116,3 +116,11 @@ pub fn cache_set_max_mem(size: u64) {
 pub fn cache_set_max(size: i32) {
     unsafe { libvips_sys::vips_cache_set_max(size) }
 }
+
+pub fn cache_set_max_files(size: i32) {
+    unsafe { libvips_sys::vips_cache_set_max_files(size) }
+}
+
+pub fn cache_get_max_files() -> i32 {
+    unsafe { libvips_sys::vips_cache_get_max_files() }
+}

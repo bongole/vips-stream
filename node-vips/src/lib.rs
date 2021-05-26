@@ -179,6 +179,7 @@ fn init(mut exports: JsObject, env: Env) -> Result<()> {
     libvips_rs::set_concurrency(1);
     libvips_rs::cache_set_max_mem(0);
     libvips_rs::cache_set_max(0);
+    libvips_rs::cache_set_max_files(0);
     // libvips_rs::cache_set_max_mem(50 * 1024 * 1024);
     // libvips_rs::cache_set_max(100);
 
