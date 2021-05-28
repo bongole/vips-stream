@@ -21,7 +21,7 @@ use parking_lot::{Condvar, Mutex};
 use std::sync::Arc;
 use threadpool::ThreadPool;
 
-const READ_THREAD_POOL_SIZE: usize = 5;
+const READ_THREAD_POOL_SIZE: usize = 2;
 static READ_THREAD_POOL: OnceCell<Mutex<ThreadPool>> = OnceCell::new();
 const WRITE_THREAD_POOL_SIZE: usize = 10;
 static WRITE_THREAD_POOL: OnceCell<Mutex<ThreadPool>> = OnceCell::new();
