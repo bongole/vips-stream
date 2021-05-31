@@ -1,6 +1,6 @@
 #include "wrapper.h"
 
-int vips_my_set_property( VipsObject *object, const char *name, const GValue *value )
+int vips_rs_set_property( VipsObject *object, const char *name, const GValue *value )
 {
     VipsObjectClass *object_class = VIPS_OBJECT_GET_CLASS( object );
     GType type = G_VALUE_TYPE( value );
