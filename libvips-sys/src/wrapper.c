@@ -37,3 +37,23 @@ int vips_rs_set_property( VipsObject *object, const char *name, const GValue *va
 
     return 1;
 }
+
+GType vips_rs_gint_get_type() {
+    return G_TYPE_INT;
+}
+
+GType vips_rs_gdouble_get_type() {
+    return G_TYPE_DOUBLE;
+}
+
+GType vips_rs_gboolean_get_type() {
+    return G_TYPE_BOOLEAN;
+}
+
+GType vips_rs_gstring_get_type() {
+    return G_TYPE_STRING;
+}
+
+GType vips_rs_get_type(const GValue *v) {
+    return G_VALUE_TYPE(v);
+}
