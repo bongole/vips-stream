@@ -54,6 +54,10 @@ GType vips_rs_gstring_get_type() {
     return G_TYPE_STRING;
 }
 
+GType vips_rs_gobject_get_type() {
+    return G_TYPE_OBJECT;
+}
+
 GType vips_rs_get_type(const GValue *v) {
     return G_VALUE_TYPE(v);
 }
